@@ -224,6 +224,21 @@ class OylDatabase private constructor(context: Context) :
     }
 
 
+    private fun createRemoteCheckoutStorage(db: SQLiteDatabase) {
+        db.execSQL("ALTER TABLE demo_orders ADD COLUMN server_order_id TEXT")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_remote_id ON demo_orders(server_order_id)")
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS pending_remote_checkout (
+                user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                request_id TEXT NOT NULL UNIQUE,
+                request_json TEXT NOT NULL,
+                delivery TEXT NOT NULL,
+                cart_fingerprint TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+        """.trimIndent())
+    }
+
     private fun createOrderTables(db: SQLiteDatabase) {
         db.execSQL("""
             CREATE TABLE IF NOT EXISTS demo_orders (
