@@ -21,6 +21,9 @@ local.properties
 *.aab
 /server/build/
 /server/.gradle/
+/server/data/
+*.mv.db
+*.trace.db
 .env
 .env.*
 keystore.properties
