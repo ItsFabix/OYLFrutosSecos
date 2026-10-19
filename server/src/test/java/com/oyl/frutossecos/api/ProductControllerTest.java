@@ -41,6 +41,8 @@ class ProductControllerTest {
         String key = UUID.randomUUID().toString();
         String json = """
             {"requestId":"%s","customerAlias":"cliente-demo",
+             "delivery":"DELIVERY","contactPhone":"+56 9 1111 1111",
+             "contactAddress":"Santiago de prueba",
              "items":[{"productId":1,"quantity":2}]}
             """.formatted(key);
         String body = mockMvc.perform(post("/api/orders")
@@ -48,6 +50,8 @@ class ProductControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.totalClp").value(6980))
+                .andExpect(jsonPath("$.delivery").value("DELIVERY"))
+                .andExpect(jsonPath("$.contactAddress").value("Santiago de prueba"))
                 .andReturn().getResponse().getContentAsString();
         JsonNode order = mapper.readTree(body);
         String orderId = order.get("id").asText();
