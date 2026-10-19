@@ -19,6 +19,8 @@ local.properties
 *.keystore
 *.apk
 *.aab
+/server/build/
+/server/.gradle/
 .env
 .env.*
 keystore.properties

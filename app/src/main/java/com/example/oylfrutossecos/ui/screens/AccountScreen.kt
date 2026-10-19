@@ -13,7 +13,8 @@ import com.example.oylfrutossecos.ui.components.*
 @Composable
 fun AccountScreen(user: User, busy: Boolean, error: String?,
     onLogoutClick: () -> Unit, onOrdersClick: () -> Unit, onMapClick: () -> Unit,
-    onNotificationsClick: () -> Unit, unreadNotices: Int) {
+    onNotificationsClick: () -> Unit, unreadNotices: Int,
+    onRestClick: () -> Unit = {}) {
     AuthLayout(
         title = "Hola, ${user.name}",
         subtitle = if (user.role == UserRole.ADMIN) "Cuenta de administrador"
@@ -39,6 +40,10 @@ fun AccountScreen(user: User, busy: Boolean, error: String?,
         OutlinedButton(onClick = onMapClick, enabled = !busy,
             modifier = Modifier.fillMaxWidth()) {
             Text("Mapa y puntos de retiro (demo)")
+        }
+        OutlinedButton(onClick = onRestClick, enabled = !busy,
+            modifier = Modifier.fillMaxWidth()) {
+            Text("Probar conexión REST (Paso 11)")
         }
         AuthMessage(error)
         AuthButton("Cerrar sesión", busy, onLogoutClick)
