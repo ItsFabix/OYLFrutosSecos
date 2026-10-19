@@ -46,9 +46,9 @@ import com.example.oylfrutossecos.ui.viewmodel.InventoryViewModel
 fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> Unit) {
     val context = LocalContext.current.applicationContext
     val database = remember(context) { OylDatabase.getInstance(context) }
-    val catalogFactory = remember(database) { CatalogViewModel.Factory(ProductRepository(database)) }
+    val catalogFactory = remember(database) { CatalogViewModel.Factory(ProductRepository(database, OylRestClient.service)) }
     val cartFactory = remember(database, user.id) { CartViewModel.Factory(CartRepository(database), user.id) }
-    val orderFactory = remember(database, user.id) { OrderViewModel.Factory(OrderRepository(database), user) }
+    val orderFactory = remember(database, user.id) { OrderViewModel.Factory(OrderRepository(database, OylRestClient.service), user) }
     val notificationFactory = remember(database, user.id) {
         NotificationViewModel.Factory(NotificationRepository(database), user.id)
     }
@@ -266,6 +266,7 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                             val startedAt = System.currentTimeMillis()
                             orders.place(delivery, cartState.items) {
                                 cart.reload()
+                                catalog.load()
                                 notices.announceIfNew(NoticeKind.ORDER_CREATED, startedAt) { created ->
                                     DemoLocalNotifier.show(context, created)
                                 }
@@ -278,6 +279,7 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                 }
                 composable("order_success") {
                     OrderSuccessScreen(orderState.placedId,
+                        serverOrderId = orderState.placedServerId,
                         onOrders = { orders.load(); openTab("orders") },
                         onHome = { openTab("store_home") })
                 }
