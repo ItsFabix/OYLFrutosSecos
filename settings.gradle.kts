@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "OYL Frutos Secos"
 include(":app")
+include(":server")
