@@ -169,6 +169,13 @@ class OylDatabase private constructor(context: Context) :
         val db = writableDatabase
         db.beginTransaction()
         try {
+            val pendingOrder = db.rawQuery(
+                "SELECT request_id FROM pending_remote_checkout WHERE user_id = ?",
+                arrayOf(userId.toString())
+            ).use { it.moveToFirst() }
+            check(!pendingOrder) {
+                "Tienes un pedido remoto pendiente. Vuelve a Confirmar pedido y reintenta antes de modificar el carrito."
+            }
             if (quantity <= 0) {
                 db.delete("cart_items", "user_id = ? AND product_id = ?",
                     arrayOf(userId.toString(), productId.toString()))
@@ -374,9 +381,10 @@ class OylDatabase private constructor(context: Context) :
         val db = writableDatabase
         db.beginTransaction()
         try {
-            val (current, clientId) = db.rawQuery("SELECT status, user_id FROM demo_orders WHERE id = ?",
+            val (current, clientId) = db.rawQuery("SELECT status, user_id, server_order_id FROM demo_orders WHERE id = ?",
                 arrayOf(orderId.toString())).use { cursor ->
                 check(cursor.moveToFirst()) { "No se encontró el pedido." }
+                check(cursor.isNull(2)) { "El estado de un pedido remoto se gestiona en Spring Boot." }
                 OrderStatus.valueOf(cursor.getString(0)) to cursor.getLong(1)
             }
             val next = current.next() ?: error("Este pedido ya se entregó.")
