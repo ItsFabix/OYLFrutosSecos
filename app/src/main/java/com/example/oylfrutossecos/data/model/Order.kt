@@ -38,5 +38,6 @@ data class OrderSummary(
     val contactPhone: String,
     val contactAddress: String,
     val totalClp: Long,
-    val lines: List<OrderLine>
+    val lines: List<OrderLine>,
+    val remoteOrderId: String? = null
 )
