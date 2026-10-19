@@ -60,6 +60,9 @@ class CartViewModel(private val repository: CartRepository, private val userId: 
                 throw cancelled
             } catch (e: IllegalArgumentException) {
                 mutable.update { it.copy(busy = false, error = e.message ?: "Cantidad no válida.") }
+            } catch (e: IllegalStateException) {
+                mutable.update { it.copy(busy = false,
+                    error = e.message ?: "No se pudo actualizar el carrito.") }
             } catch (_: Exception) {
                 mutable.update { it.copy(busy = false, error = "No se pudo actualizar el carrito.") }
             }
