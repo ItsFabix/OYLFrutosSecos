@@ -51,8 +51,11 @@ fun EditProductScreen(product: Product?, isNew: Boolean, onBack: () -> Unit,
             label = { Text("Peso en gramos") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth(), enabled = !busy)
         OutlinedTextField(stock, { stock = it.filter(Char::isDigit) },
-            label = { Text("Stock de bolsas") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth(), enabled = !busy)
+            label = { Text(if (isNew) "Stock inicial de bolsas" else "Stock actual (solo lectura)") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            modifier = Modifier.fillMaxWidth(), enabled = isNew && !busy)
+        if (!isNew) Text("Para registrar entradas y salidas usa Productos → Inventario. Así cada cambio queda en el historial.",
+            style = MaterialTheme.typography.bodySmall)
         if (error != null) Text(error.orEmpty(), color = MaterialTheme.colorScheme.error)
         Button(enabled = !busy, modifier = Modifier.fillMaxWidth(), onClick = {
             val unitPrice = price.toIntOrNull()

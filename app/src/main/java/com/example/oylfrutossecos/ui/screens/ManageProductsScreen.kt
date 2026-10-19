@@ -12,14 +12,17 @@ import com.example.oylfrutossecos.ui.viewmodel.CatalogState
 
 @Composable
 fun ManageProductsScreen(state: CatalogState, onNew: () -> Unit, onEdit: (Long) -> Unit,
-    onRefresh: () -> Unit) {
+    onRefresh: () -> Unit, onInventory: () -> Unit) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Text("Gestión de productos", style = MaterialTheme.typography.headlineMedium)
             Text("Administrador · datos locales de demostración")
             Spacer(Modifier.height(12.dp))
-            Button(onClick = onNew) { Text("+ Crear producto") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onNew) { Text("+ Crear producto") }
+                OutlinedButton(onClick = onInventory) { Text("Inventario") }
+            }
         }
         if (state.loading) item { CircularProgressIndicator() }
         if (state.error != null) item {

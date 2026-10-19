@@ -16,10 +16,13 @@ import com.example.oylfrutossecos.data.model.DeliveryMethod
 import com.example.oylfrutossecos.data.model.Registration
 import com.example.oylfrutossecos.data.model.UserRole
 import com.example.oylfrutossecos.domain.AuthValidator
+import com.example.oylfrutossecos.domain.InventoryRules
+import com.example.oylfrutossecos.data.model.InventoryMovement
+import com.example.oylfrutossecos.data.model.MovementType
 
 // Estos métodos se invocan desde Dispatchers.IO en AuthRepository.
 class OylDatabase private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "oyl_auth.db", null, 4) {
+    SQLiteOpenHelper(context.applicationContext, "oyl_auth.db", null, 5) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         db.setForeignKeyConstraintsEnabled(true)
@@ -55,6 +58,7 @@ class OylDatabase private constructor(context: Context) :
         createProducts(db)
         createCartTable(db)
         createOrderTables(db)
+        createInventoryTables(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -62,6 +66,7 @@ class OylDatabase private constructor(context: Context) :
         if (oldVersion < 2) createProducts(db)
         if (oldVersion < 3) createCartTable(db)
         if (oldVersion < 4) createOrderTables(db)
+        if (oldVersion < 5) createInventoryTables(db)
     }
 
 
@@ -194,6 +199,9 @@ class OylDatabase private constructor(context: Context) :
             check(inserted > 0L) { "No se pudo crear el producto." }
             inserted
         } else {
+            // El inventario se modifica solo mediante movimientos auditables.
+            // Aunque una pantalla antigua envíe stock, no lo sobrescribimos aquí.
+            values.remove("stock")
             check(db.update("products", values, "id = ?", arrayOf(id.toString())) == 1) {
                 "El producto no existe."
             }
@@ -343,6 +351,86 @@ class OylDatabase private constructor(context: Context) :
             db.setTransactionSuccessful()
         } finally { db.endTransaction() }
     }
+
+
+    private fun createInventoryTables(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS inventory_movements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_id INTEGER NOT NULL REFERENCES products(id),
+                admin_user_id INTEGER NOT NULL REFERENCES users(id),
+                movement_type TEXT NOT NULL CHECK(movement_type IN ('ENTRY','EXIT')),
+                quantity INTEGER NOT NULL CHECK(quantity > 0),
+                before_stock INTEGER NOT NULL CHECK(before_stock >= 0),
+                after_stock INTEGER NOT NULL CHECK(after_stock >= 0),
+                note TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+        """.trimIndent())
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_inventory_product ON inventory_movements(product_id, id DESC)")
+    }
+
+    /** Modifica EXISTENCIAS LOCALES de demostración y deja una auditoría en una transacción. */
+    fun recordInventoryMovement(adminId: Long, productId: Long, type: MovementType,
+                                quantity: Int, note: String): Long {
+        InventoryRules.validateNote(note)?.let { throw IllegalArgumentException(it) }
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val validAdmin = db.rawQuery("SELECT role FROM users WHERE id = ?",
+                arrayOf(adminId.toString())).use { it.moveToFirst() && it.getString(0) == "ADMIN" }
+            require(validAdmin) { "Solo el administrador puede actualizar el inventario." }
+            val oldStock = db.rawQuery("SELECT stock FROM products WHERE id = ?",
+                arrayOf(productId.toString())).use { cursor ->
+                require(cursor.moveToFirst()) { "El producto ya no existe." }
+                cursor.getInt(0)
+            }
+            val newStock = InventoryRules.newStock(oldStock, type, quantity)
+            val values = ContentValues().apply { put("stock", newStock) }
+            check(db.update("products", values, "id = ? AND stock = ?",
+                arrayOf(productId.toString(), oldStock.toString())) == 1) {
+                "El stock cambió. Actualiza y vuelve a intentar."
+            }
+            val movementId = db.insertOrThrow("inventory_movements", null, ContentValues().apply {
+                put("product_id", productId)
+                put("admin_user_id", adminId)
+                put("movement_type", type.name)
+                put("quantity", quantity)
+                put("before_stock", oldStock)
+                put("after_stock", newStock)
+                put("note", note.trim())
+                put("created_at", System.currentTimeMillis())
+            })
+            check(movementId > 0L) { "No se pudo registrar el movimiento." }
+            db.setTransactionSuccessful()
+            return movementId
+        } finally { db.endTransaction() }
+    }
+
+    fun readInventoryMovements(productId: Long? = null): List<InventoryMovement> {
+        val result = mutableListOf<InventoryMovement>()
+        val where = if (productId != null) "WHERE m.product_id = ?" else ""
+        val args = if (productId != null) arrayOf(productId.toString()) else null
+        readableDatabase.rawQuery("""
+            SELECT m.id, m.product_id, p.name, m.movement_type, m.quantity,
+                   m.before_stock, m.after_stock, m.note, m.created_at
+            FROM inventory_movements m JOIN products p ON p.id = m.product_id
+            $where ORDER BY m.id DESC LIMIT 100
+        """.trimIndent(), args).use { cursor ->
+            while (cursor.moveToNext()) {
+                result.add(InventoryMovement(
+                    id = cursor.getLong(0), productId = cursor.getLong(1),
+                    productName = cursor.getString(2),
+                    type = MovementType.valueOf(cursor.getString(3)),
+                    quantity = cursor.getInt(4), beforeStock = cursor.getInt(5),
+                    afterStock = cursor.getInt(6), note = cursor.getString(7),
+                    createdAt = cursor.getLong(8)
+                ))
+            }
+        }
+        return result
+    }
+
 
     private fun insertUser(db: SQLiteDatabase, form: Registration, role: UserRole): Long {
         val salt = PasswordHasher.newSalt()

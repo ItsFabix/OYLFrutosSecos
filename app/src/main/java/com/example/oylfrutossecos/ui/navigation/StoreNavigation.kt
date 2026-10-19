@@ -20,14 +20,17 @@ import androidx.navigation.compose.*
 import com.example.oylfrutossecos.data.local.OylDatabase
 import com.example.oylfrutossecos.data.model.User
 import com.example.oylfrutossecos.data.model.DeliveryMethod
+import com.example.oylfrutossecos.data.model.MovementType
 import com.example.oylfrutossecos.data.model.UserRole
 import com.example.oylfrutossecos.data.repository.CartRepository
 import com.example.oylfrutossecos.data.repository.ProductRepository
 import com.example.oylfrutossecos.data.repository.OrderRepository
+import com.example.oylfrutossecos.data.repository.InventoryRepository
 import com.example.oylfrutossecos.ui.screens.*
 import com.example.oylfrutossecos.ui.viewmodel.CatalogViewModel
 import com.example.oylfrutossecos.ui.viewmodel.CartViewModel
 import com.example.oylfrutossecos.ui.viewmodel.OrderViewModel
+import com.example.oylfrutossecos.ui.viewmodel.InventoryViewModel
 
 @Composable
 fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> Unit) {
@@ -36,12 +39,21 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
     val catalogFactory = remember(database) { CatalogViewModel.Factory(ProductRepository(database)) }
     val cartFactory = remember(database, user.id) { CartViewModel.Factory(CartRepository(database), user.id) }
     val orderFactory = remember(database, user.id) { OrderViewModel.Factory(OrderRepository(database), user) }
+    val inventoryFactory = remember(database, user.id) {
+        InventoryViewModel.Factory(InventoryRepository(database), user.id)
+    }
     val catalog: CatalogViewModel = viewModel(key = "catalog-${user.id}", factory = catalogFactory)
     val cart: CartViewModel = viewModel(key = "cart-${user.id}", factory = cartFactory)
     val orders: OrderViewModel = viewModel(key = "orders-${user.id}", factory = orderFactory)
+    val inventory: InventoryViewModel? = if (user.role == UserRole.ADMIN)
+        viewModel(key = "inventory-${user.id}", factory = inventoryFactory) else null
     val state by catalog.state.collectAsStateWithLifecycle()
     val cartState by cart.state.collectAsStateWithLifecycle()
     val orderState by orders.state.collectAsStateWithLifecycle()
+    val inventoryState = if (inventory != null) {
+        val observed by inventory.state.collectAsStateWithLifecycle()
+        observed
+    } else null
     val admin = user.role == UserRole.ADMIN
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
@@ -67,7 +79,8 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                 onClick = { openTab("catalog") }, icon = { Icon(Icons.Default.ShoppingBag, null) },
                 label = { Text("Catálogo") })
             if (admin) {
-                NavigationBarItem(selected = current == "manage" || current == "editor/{id}",
+                NavigationBarItem(selected = current == "manage" || current == "editor/{id}" ||
+                    current == "inventory" || current == "inventory_adjust/{id}",
                     enabled = !busy, onClick = { openTab("manage") },
                     icon = { Icon(Icons.Default.Inventory2, null) }, label = { Text("Productos") })
             } else {
@@ -102,7 +115,39 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
             if (admin) {
                 composable("manage") {
                     ManageProductsScreen(state, { nav.navigate("editor/0") },
-                        { nav.navigate("editor/$it") }, catalog::load)
+                        { nav.navigate("editor/$it") }, catalog::load,
+                        onInventory = { inventory?.load(); nav.navigate("inventory") { launchSingleTop = true } })
+                }
+                composable("inventory") {
+                    if (inventoryState != null) {
+                        InventoryScreen(inventoryState,
+                            onBack = { catalog.load(); nav.popBackStack() },
+                            onRefresh = { inventory?.load() },
+                            onAdjust = { productId ->
+                                inventory?.clearNotice()
+                                nav.navigate("inventory_adjust/$productId") { launchSingleTop = true }
+                            })
+                    }
+                }
+                composable("inventory_adjust/{id}",
+                    arguments = listOf(navArgument("id") { type = NavType.LongType })) { route ->
+                    val id = route.arguments?.getLong("id")
+                    val product = inventoryState?.products?.firstOrNull { it.id == id }
+                    if (product != null && inventoryState != null && inventory != null) {
+                        StockAdjustmentScreen(product, inventoryState,
+                            onBack = { nav.popBackStack() },
+                            onSave = { type: MovementType, quantity: Int, note: String ->
+                                inventory.adjust(product.id, type, quantity, note) {
+                                    catalog.load()
+                                    nav.popBackStack()
+                                }
+                            })
+                    } else {
+                        Column(Modifier.padding(20.dp)) {
+                            Text("Producto no encontrado en el inventario")
+                            TextButton(onClick = { nav.popBackStack() }) { Text("Volver") }
+                        }
+                    }
                 }
                 composable("editor/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) { route ->
                     val id = route.arguments?.getLong("id") ?: 0L
