@@ -28,7 +28,8 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
             TextButton(onClick = onBack) { Text("← Volver") }
             Text(if (admin) "Gestionar pedidos" else "Mis pedidos",
                 style = MaterialTheme.typography.headlineMedium)
-            Text("Registros locales de prueba · no conectados con el servidor",
+            Text("Historial en SQLite: pedidos antiguos locales y copias de pedidos REST. " +
+                "La actualización remota de estados se incorporará después.",
                 style = MaterialTheme.typography.bodySmall)
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -52,6 +53,13 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
                 Column(Modifier.fillMaxWidth().padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Text("Pedido #${order.id}", style = MaterialTheme.typography.titleLarge)
+                    if (order.remoteOrderId != null) {
+                        Text("Registrado en Spring Boot: ${order.remoteOrderId}",
+                            style = MaterialTheme.typography.bodySmall)
+                    } else {
+                        Text("Pedido local antiguo (demostración)",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
                     Text(SimpleDateFormat("dd/MM/yyyy · HH:mm", Locale("es", "CL"))
                         .format(Date(order.createdAt)), style = MaterialTheme.typography.bodySmall)
                     if (admin) Text("Cliente: ${order.customerName}")
@@ -67,7 +75,7 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
                     }
                     Text("Total: ${priceInPesos(order.totalClp.toInt())}",
                         style = MaterialTheme.typography.titleMedium)
-                    if (admin && order.status.next() != null) {
+                    if (admin && order.remoteOrderId == null && order.status.next() != null) {
                         Button(onClick = { onAdvance(order.id) }, enabled = !state.busy,
                             modifier = Modifier.fillMaxWidth()) {
                             Text("Marcar como ${order.status.next()?.displayName}")

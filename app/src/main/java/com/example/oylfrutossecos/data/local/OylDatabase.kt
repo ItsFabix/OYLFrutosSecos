@@ -21,10 +21,12 @@ import com.example.oylfrutossecos.data.model.InventoryMovement
 import com.example.oylfrutossecos.data.model.MovementType
 import com.example.oylfrutossecos.data.model.AppNotice
 import com.example.oylfrutossecos.data.model.NoticeKind
+import com.example.oylfrutossecos.data.remote.ApiOrderResponse
+import com.example.oylfrutossecos.data.remote.ApiProduct
 
 // Estos métodos se invocan desde Dispatchers.IO en AuthRepository.
 class OylDatabase private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "oyl_auth.db", null, 6) {
+    SQLiteOpenHelper(context.applicationContext, "oyl_auth.db", null, 7) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         db.setForeignKeyConstraintsEnabled(true)
@@ -60,6 +62,7 @@ class OylDatabase private constructor(context: Context) :
         createProducts(db)
         createCartTable(db)
         createOrderTables(db)
+        createRemoteCheckoutStorage(db)
         createInventoryTables(db)
         createNoticeTable(db)
         seedLowStockNotices(db)
@@ -71,6 +74,7 @@ class OylDatabase private constructor(context: Context) :
         if (oldVersion < 3) createCartTable(db)
         if (oldVersion < 4) createOrderTables(db)
         if (oldVersion < 5) createInventoryTables(db)
+        if (oldVersion < 7) createRemoteCheckoutStorage(db)
         if (oldVersion < 6) {
             createNoticeTable(db)
             seedLowStockNotices(db)
@@ -165,6 +169,13 @@ class OylDatabase private constructor(context: Context) :
         val db = writableDatabase
         db.beginTransaction()
         try {
+            val pendingOrder = db.rawQuery(
+                "SELECT request_id FROM pending_remote_checkout WHERE user_id = ?",
+                arrayOf(userId.toString())
+            ).use { it.moveToFirst() }
+            check(!pendingOrder) {
+                "Tienes un pedido remoto pendiente. Vuelve a Confirmar pedido y reintenta antes de modificar el carrito."
+            }
             if (quantity <= 0) {
                 db.delete("cart_items", "user_id = ? AND product_id = ?",
                     arrayOf(userId.toString(), productId.toString()))
@@ -219,6 +230,21 @@ class OylDatabase private constructor(context: Context) :
         }
     }
 
+
+    private fun createRemoteCheckoutStorage(db: SQLiteDatabase) {
+        db.execSQL("ALTER TABLE demo_orders ADD COLUMN server_order_id TEXT")
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_remote_id ON demo_orders(server_order_id)")
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS pending_remote_checkout (
+                user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                request_id TEXT NOT NULL UNIQUE,
+                request_json TEXT NOT NULL,
+                delivery TEXT NOT NULL,
+                cart_fingerprint TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            )
+        """.trimIndent())
+    }
 
     private fun createOrderTables(db: SQLiteDatabase) {
         db.execSQL("""
@@ -343,7 +369,8 @@ class OylDatabase private constructor(context: Context) :
                         contactPhone = cursor.getString(cursor.getColumnIndexOrThrow("phone")),
                         contactAddress = cursor.getString(cursor.getColumnIndexOrThrow("address")),
                         totalClp = cursor.getLong(cursor.getColumnIndexOrThrow("total_clp")),
-                        lines = lines
+                        lines = lines,
+                        remoteOrderId = cursor.getString(cursor.getColumnIndexOrThrow("server_order_id"))
                     ))
                 }
             }
@@ -354,9 +381,10 @@ class OylDatabase private constructor(context: Context) :
         val db = writableDatabase
         db.beginTransaction()
         try {
-            val (current, clientId) = db.rawQuery("SELECT status, user_id FROM demo_orders WHERE id = ?",
+            val (current, clientId) = db.rawQuery("SELECT status, user_id, server_order_id FROM demo_orders WHERE id = ?",
                 arrayOf(orderId.toString())).use { cursor ->
                 check(cursor.moveToFirst()) { "No se encontró el pedido." }
+                check(cursor.isNull(2)) { "El estado de un pedido remoto se gestiona en Spring Boot." }
                 OrderStatus.valueOf(cursor.getString(0)) to cursor.getLong(1)
             }
             val next = current.next() ?: error("Este pedido ya se entregó.")

@@ -16,7 +16,8 @@ data class OrderUiState(
     val loading: Boolean = true,
     val busy: Boolean = false,
     val error: String? = null,
-    val placedId: Long? = null
+    val placedId: Long? = null,
+    val placedServerId: String? = null
 )
 
 class OrderViewModel(private val repository: OrderRepository, private val user: User) : ViewModel() {
@@ -42,12 +43,13 @@ class OrderViewModel(private val repository: OrderRepository, private val user: 
     fun place(delivery: DeliveryMethod, expectedItems: List<CartItem>, onSuccess: () -> Unit) {
         if (mutable.value.busy || expectedItems.isEmpty() || user.role != UserRole.CLIENT) return
         // Marcar ocupado ANTES de lanzar la coroutine evita confirmar dos veces por doble tap.
-        mutable.update { it.copy(busy = true, error = null, placedId = null) }
+        mutable.update { it.copy(busy = true, error = null, placedId = null, placedServerId = null) }
         viewModelScope.launch {
             try {
-                val id = repository.placeOrder(user, delivery, expectedItems)
+                val placed = repository.placeOrder(user, delivery, expectedItems)
                 // Un fallo posterior al guardado no debe hacer creer al usuario que debe repetirlo.
-                mutable.update { it.copy(busy = false, placedId = id, loading = false) }
+                mutable.update { it.copy(busy = false, placedId = placed.localId,
+                    placedServerId = placed.serverId, loading = false) }
                 onSuccess()
                 load()
             } catch (cancelled: CancellationException) {
@@ -57,7 +59,7 @@ class OrderViewModel(private val repository: OrderRepository, private val user: 
             } catch (e: IllegalStateException) {
                 mutable.update { it.copy(busy = false, error = e.message ?: "No se pudo guardar el pedido.") }
             } catch (_: Exception) {
-                mutable.update { it.copy(busy = false, error = "No se pudo guardar el pedido de prueba.") }
+                mutable.update { it.copy(busy = false, error = "No se pudo contactar con el servidor. Reintenta; se conservará el identificador de solicitud.") }
             }
         }
     }

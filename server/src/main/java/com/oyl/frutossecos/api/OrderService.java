@@ -17,10 +17,12 @@ public class OrderService {
     public OrderService(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
     public record LineRequest(long productId, int quantity) {}
-    public record CreateOrderRequest(String requestId, String customerAlias, List<LineRequest> items) {}
+    public record CreateOrderRequest(String requestId, String customerAlias, List<LineRequest> items,
+                                     String delivery, String contactPhone, String contactAddress) {}
     public record OrderLine(long productId, String productName, int quantity, int unitPriceClp) {}
     public record OrderResponse(String id, String requestId, String customerAlias,
-                                String status, long totalClp, List<OrderLine> items) {}
+                                String status, long totalClp, List<OrderLine> items,
+                                String delivery, String contactPhone, String contactAddress) {}
     private record LockedProduct(long id, String name, int price, int stock) {}
 
     @Transactional
@@ -35,6 +37,13 @@ public class OrderService {
             requestId = UUID.fromString(req.requestId()).toString();
         } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "requestId debe ser UUID");
+        }
+        String delivery = req.delivery() == null ? "PICKUP" : req.delivery();
+        String phone = req.contactPhone() == null ? "" : req.contactPhone().trim();
+        String address = req.contactAddress() == null ? "" : req.contactAddress().trim();
+        if ((!delivery.equals("PICKUP") && !delivery.equals("DELIVERY"))
+                || phone.length() > 80 || address.length() > 255) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Datos de entrega inválidos");
         }
         var found = jdbc.query("SELECT id FROM demo_orders WHERE request_id = ?",
                 (rs, i) -> rs.getString(1), requestId);
@@ -79,9 +88,11 @@ public class OrderService {
         }
         String orderId = UUID.randomUUID().toString();
         jdbc.update("""
-                INSERT INTO demo_orders(id, request_id, customer_alias, created_at, status, total_clp)
-                VALUES(?, ?, ?, ?, 'PENDING', ?)
-                """, orderId, requestId, req.customerAlias().trim(), System.currentTimeMillis(), total);
+                INSERT INTO demo_orders(id, request_id, customer_alias, created_at, status,
+                                        total_clp, delivery, contact_phone, contact_address)
+                VALUES(?, ?, ?, ?, 'PENDING', ?, ?, ?, ?)
+                """, orderId, requestId, req.customerAlias().trim(), System.currentTimeMillis(),
+                total, delivery, phone, address);
         for (var line : lines) {
             jdbc.update("""
                     INSERT INTO demo_order_lines(order_id, product_id, product_name, quantity, unit_price_clp)
@@ -102,12 +113,14 @@ public class OrderService {
     @Transactional(readOnly = true)
     public OrderResponse byId(String id) {
         var rows = jdbc.query("""
-                SELECT id, request_id, customer_alias, status, total_clp
+                SELECT id, request_id, customer_alias, status, total_clp, delivery,
+                       contact_phone, contact_address
                 FROM demo_orders WHERE id = ?
                 """, (rs, i) -> new String[] {
                     rs.getString("id"), rs.getString("request_id"),
                     rs.getString("customer_alias"), rs.getString("status"),
-                    rs.getString("total_clp") }, id);
+                    rs.getString("total_clp"), rs.getString("delivery"),
+                    rs.getString("contact_phone"), rs.getString("contact_address") }, id);
         if (rows.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido no encontrado");
         }
@@ -118,6 +131,6 @@ public class OrderService {
                 """, (rs, i) -> new OrderLine(
                     rs.getLong(1), rs.getString(2), rs.getInt(3), rs.getInt(4)), id);
         return new OrderResponse(row[0], row[1], row[2], row[3],
-                Long.parseLong(row[4]), lines);
+                Long.parseLong(row[4]), lines, row[5], row[6], row[7]);
     }
 }

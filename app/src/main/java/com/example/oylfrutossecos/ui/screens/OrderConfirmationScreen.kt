@@ -28,7 +28,7 @@ fun OrderConfirmationScreen(
         item {
             TextButton(onClick = onBack, enabled = !state.busy) { Text("← Volver al carrito") }
             Text("Confirmar pedido", style = MaterialTheme.typography.headlineMedium)
-            Text("Solicitud de demostración local; no se realiza un cobro ni una compra real.",
+            Text("Pedido de demostración conectado a Spring Boot; sin pago ni compra real.",
                 style = MaterialTheme.typography.bodySmall)
         }
         if (cart.loading) item { CircularProgressIndicator() }
@@ -77,8 +77,9 @@ fun OrderConfirmationScreen(
                 }
             }
             item {
-                Text("El pedido se guardará con estado Pendiente de validación. El stock no se descuenta: " +
-                    "la compra oficial dependerá del servidor Spring Boot.",
+                Text("Spring Boot verificará las existencias y descontará stock en H2 de prueba. " +
+                    "El total final se calculará con los precios del servidor. " +
+                    "Si falla la conexión, podrás reintentar la misma solicitud.",
                     style = MaterialTheme.typography.bodySmall)
                 if (invalidStock) Text("Hay productos sin stock suficiente. Vuelve al carrito.",
                     color = MaterialTheme.colorScheme.error)
@@ -88,7 +89,7 @@ fun OrderConfirmationScreen(
                     enabled = !state.busy && !cart.busy && !invalidStock && cart.items.isNotEmpty(),
                     modifier = Modifier.fillMaxWidth()) {
                     if (state.busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                    else Text("Guardar solicitud de prueba")
+                    else Text("Confirmar pedido en servidor")
                 }
             }
         }

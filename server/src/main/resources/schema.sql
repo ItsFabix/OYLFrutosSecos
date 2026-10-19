@@ -36,3 +36,8 @@ CREATE TABLE IF NOT EXISTS inventory_movements (
     note VARCHAR(200) NOT NULL,
     created_at BIGINT NOT NULL
 );
+
+-- Migración aditiva: conserva pedidos H2 creados en los pasos anteriores.
+ALTER TABLE demo_orders ADD COLUMN IF NOT EXISTS delivery VARCHAR(20) DEFAULT 'PICKUP' NOT NULL;
+ALTER TABLE demo_orders ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(80) DEFAULT '' NOT NULL;
+ALTER TABLE demo_orders ADD COLUMN IF NOT EXISTS contact_address VARCHAR(255) DEFAULT '' NOT NULL;

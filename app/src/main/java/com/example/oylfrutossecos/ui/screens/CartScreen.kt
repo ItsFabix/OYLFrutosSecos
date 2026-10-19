@@ -77,7 +77,8 @@ fun CartScreen(state: CartState, onChange: (Long, Int) -> Unit,
                         color = MaterialTheme.colorScheme.primary)
                 }
                 Spacer(Modifier.height(8.dp))
-                Text("Puedes crear una solicitud de demostración. No hay cobro ni descuento real de stock.",
+                Text("Los precios son estimativos. Spring Boot validará precio y stock al confirmar " +
+                    "el pedido de prueba; no se realizará ningún pago.",
                     style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(12.dp))
                 Button(onClick = onCheckout,
