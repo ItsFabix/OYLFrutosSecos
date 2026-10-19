@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -78,6 +79,9 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
             NavigationBarItem(selected = current == "catalog" || current == "product/{id}", enabled = !busy,
                 onClick = { openTab("catalog") }, icon = { Icon(Icons.Default.ShoppingBag, null) },
                 label = { Text("Catálogo") })
+            NavigationBarItem(selected = current == "qr_scanner", enabled = !busy,
+                onClick = { openTab("qr_scanner") }, icon = { Icon(Icons.Default.Search, null) },
+                label = { Text("QR") })
             if (admin) {
                 NavigationBarItem(selected = current == "manage" || current == "editor/{id}" ||
                     current == "inventory" || current == "inventory_adjust/{id}",
@@ -101,6 +105,17 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
             composable("catalog") {
                 CatalogScreen(state, catalog::search, catalog::selectCategory,
                     catalog::clearFilters, catalog::load, ::openProduct)
+            }
+            composable("qr_scanner") {
+                QrScannerScreen(state, isAdmin = admin,
+                    onRefresh = catalog::load,
+                    onOpenProduct = ::openProduct,
+                    onAdjustInventory = { id ->
+                        if (admin) {
+                            inventory?.load()
+                            nav.navigate("inventory_adjust/$id") { launchSingleTop = true }
+                        }
+                    })
             }
             composable("product/{id}", arguments = listOf(navArgument("id") { type = NavType.LongType })) { route ->
                 val id = route.arguments?.getLong("id")

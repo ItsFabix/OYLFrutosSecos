@@ -65,3 +65,8 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
+
+// OYL Paso 7: lector QR de Google (compatible con el ejemplo 105)
+dependencies {
+    implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
+}
