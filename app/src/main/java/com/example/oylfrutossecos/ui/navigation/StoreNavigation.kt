@@ -157,12 +157,17 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
             composable("rest_api") {
                 val remote: RemoteCatalogViewModel = viewModel(
                     key = "oyl-remote-api",
-                    factory = RemoteCatalogViewModel.Factory(OylRestClient.service)
+                    factory = RemoteCatalogViewModel.Factory(OylRestClient.service, context)
                 )
                 val remoteState by remote.state.collectAsStateWithLifecycle()
-                RemoteCatalogScreen(remoteState,
+                RemoteCatalogScreen(
+                    state = remoteState,
+                    isAdmin = admin,
                     onBack = { nav.popBackStack() },
-                    onRefresh = remote::load)
+                    onRefresh = remote::load,
+                    onCreateDemoOrder = remote::createDemoOrder,
+                    onNewDemoOrder = remote::prepareAnotherDemoOrder
+                )
             }
             composable("catalog") {
                 CatalogScreen(state, catalog::search, catalog::selectCategory,
