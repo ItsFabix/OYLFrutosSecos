@@ -17,6 +17,8 @@ import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.example.oylfrutossecos.ui.notifications.DemoLocalNotifier
+import com.example.oylfrutossecos.data.remote.OylRestClient
+import com.example.oylfrutossecos.ui.viewmodel.RemoteCatalogViewModel
 import com.example.oylfrutossecos.data.repository.NotificationRepository
 import com.example.oylfrutossecos.ui.viewmodel.NotificationViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -152,6 +154,16 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                         else permissionGranted = true
                     })
             }
+            composable("rest_api") {
+                val remote: RemoteCatalogViewModel = viewModel(
+                    key = "oyl-remote-api",
+                    factory = RemoteCatalogViewModel.Factory(OylRestClient.service)
+                )
+                val remoteState by remote.state.collectAsStateWithLifecycle()
+                RemoteCatalogScreen(remoteState,
+                    onBack = { nav.popBackStack() },
+                    onRefresh = remote::load)
+            }
             composable("catalog") {
                 CatalogScreen(state, catalog::search, catalog::selectCategory,
                     catalog::clearFilters, catalog::load, ::openProduct)
@@ -277,7 +289,8 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                     onNotificationsClick = {
                         notices.load()
                         nav.navigate("notifications") { launchSingleTop = true }
-                    }, unreadNotices = noticeState.unreadCount)
+                    }, unreadNotices = noticeState.unreadCount,
+                    onRestClick = { nav.navigate("rest_api") { launchSingleTop = true } })
             }
         }
     }
