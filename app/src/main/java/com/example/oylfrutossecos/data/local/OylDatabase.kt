@@ -21,10 +21,12 @@ import com.example.oylfrutossecos.data.model.InventoryMovement
 import com.example.oylfrutossecos.data.model.MovementType
 import com.example.oylfrutossecos.data.model.AppNotice
 import com.example.oylfrutossecos.data.model.NoticeKind
+import com.example.oylfrutossecos.data.remote.ApiOrderResponse
+import com.example.oylfrutossecos.data.remote.ApiProduct
 
 // Estos métodos se invocan desde Dispatchers.IO en AuthRepository.
 class OylDatabase private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "oyl_auth.db", null, 6) {
+    SQLiteOpenHelper(context.applicationContext, "oyl_auth.db", null, 7) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         db.setForeignKeyConstraintsEnabled(true)
@@ -60,6 +62,7 @@ class OylDatabase private constructor(context: Context) :
         createProducts(db)
         createCartTable(db)
         createOrderTables(db)
+        createRemoteCheckoutStorage(db)
         createInventoryTables(db)
         createNoticeTable(db)
         seedLowStockNotices(db)
@@ -71,6 +74,7 @@ class OylDatabase private constructor(context: Context) :
         if (oldVersion < 3) createCartTable(db)
         if (oldVersion < 4) createOrderTables(db)
         if (oldVersion < 5) createInventoryTables(db)
+        if (oldVersion < 7) createRemoteCheckoutStorage(db)
         if (oldVersion < 6) {
             createNoticeTable(db)
             seedLowStockNotices(db)
@@ -343,7 +347,8 @@ class OylDatabase private constructor(context: Context) :
                         contactPhone = cursor.getString(cursor.getColumnIndexOrThrow("phone")),
                         contactAddress = cursor.getString(cursor.getColumnIndexOrThrow("address")),
                         totalClp = cursor.getLong(cursor.getColumnIndexOrThrow("total_clp")),
-                        lines = lines
+                        lines = lines,
+                        remoteOrderId = cursor.getString(cursor.getColumnIndexOrThrow("server_order_id"))
                     ))
                 }
             }
