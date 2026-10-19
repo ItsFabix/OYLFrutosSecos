@@ -21,8 +21,6 @@ import com.example.oylfrutossecos.data.model.InventoryMovement
 import com.example.oylfrutossecos.data.model.MovementType
 import com.example.oylfrutossecos.data.model.AppNotice
 import com.example.oylfrutossecos.data.model.NoticeKind
-import com.example.oylfrutossecos.data.remote.ApiOrderResponse
-import com.example.oylfrutossecos.data.remote.ApiProduct
 
 // Estos métodos se invocan desde Dispatchers.IO en AuthRepository.
 class OylDatabase private constructor(context: Context) :
@@ -489,7 +487,7 @@ class OylDatabase private constructor(context: Context) :
 
 
 
-    // Paso 9: avisos LOCALES y separados por usuario. Las notificaciones push requieren backend.
+    // Avisos LOCALES por usuario; las notificaciones push requieren backend.
     private fun createNoticeTable(db: SQLiteDatabase) {
         db.execSQL("""
             CREATE TABLE IF NOT EXISTS app_notices (

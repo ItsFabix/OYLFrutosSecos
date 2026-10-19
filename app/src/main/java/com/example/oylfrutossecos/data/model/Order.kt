@@ -1,6 +1,6 @@
 package com.example.oylfrutossecos.data.model
 
-// Los pedidos del Paso 5 son DEMOSTRACIONES LOCALES, no ventas procesadas en servidor.
+// Pedidos LOCALES de demostración; no son ventas procesadas en el servidor.
 enum class OrderStatus(val displayName: String) {
     PENDING("Pendiente de validación"),
     CONFIRMED("Confirmado"),

@@ -15,10 +15,7 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions
 import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 
-/**
- * El lector es la interfaz de Google Play services, igual que en el ejemplo 105
- * del curso. No se solicita permiso CAMERA a nuestra aplicación.
- */
+// Usa Google Play services para el escaneo; no requiere permiso CAMERA en la aplicación.
 @Composable
 fun QrScannerScreen(
     state: CatalogState,
