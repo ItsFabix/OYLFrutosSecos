@@ -8,17 +8,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun OrderSuccessScreen(orderId: Long?, onOrders: () -> Unit, onHome: () -> Unit) {
+fun OrderSuccessScreen(orderId: Long?, serverOrderId: String? = null,
+    onOrders: () -> Unit, onHome: () -> Unit) {
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally) {
         Text("✓", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(14.dp))
-        Text("Solicitud guardada", style = MaterialTheme.typography.headlineMedium)
+        Text("Pedido registrado", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(8.dp))
-        Text(if (orderId == null) "Pedido de demostración" else "Número de solicitud: #$orderId")
+        Text(if (orderId == null) "Pedido de demostración" else "Número en tu historial: #$orderId")
+        if (serverOrderId != null) Text("ID servidor: $serverOrderId",
+            style = MaterialTheme.typography.bodySmall)
         Text("Estado: Pendiente de validación")
         Spacer(Modifier.height(8.dp))
-        Text("Este comprobante es solo local. No se envió ningún pedido a una tienda.",
+        Text("Pedido ficticio enviado al servidor Spring Boot y cacheado en SQLite. " +
+            "No hay cobro real ni envío a una tienda.",
             style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(24.dp))
         Button(onClick = onOrders, modifier = Modifier.fillMaxWidth()) { Text("Ver mis pedidos") }
