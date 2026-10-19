@@ -2,7 +2,9 @@ package com.example.oylfrutossecos.data.model
 
 data class ProductDraft(
     val name: String, val category: String, val description: String,
-    val priceClp: Int, val weightGrams: Int, val stock: Int
+    val priceClp: Int, val weightGrams: Int, val stock: Int,
+    // null conserva la imagen actual o la ilustración predeterminada.
+    val imageKey: String? = null
 ) {
     fun validationError(): String? = when {
         name.trim().length < 3 -> "Escribe un nombre de al menos 3 caracteres."
