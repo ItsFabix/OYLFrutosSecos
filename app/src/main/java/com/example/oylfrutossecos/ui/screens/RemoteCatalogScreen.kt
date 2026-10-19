@@ -86,7 +86,7 @@ fun RemoteCatalogScreen(
                             } else {
                                 Text("Pedido creado: ${order.id}",
                                     style = MaterialTheme.typography.bodySmall)
-                                Text("Estado: ${order.status} · Total: $${order.totalClp} CLP")
+                                Text("Estado: ${order.status} · Total: ${order.totalClp} CLP")
                                 Text("ID de solicitud: ${order.requestId}",
                                     style = MaterialTheme.typography.bodySmall)
                                 OutlinedButton(
