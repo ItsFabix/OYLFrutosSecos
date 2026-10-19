@@ -1,5 +1,10 @@
 package com.example.oylfrutossecos.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import com.example.oylfrutossecos.ui.components.ProductImage
+import com.example.oylfrutossecos.ui.components.ProductPhotoStore
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -22,6 +27,19 @@ fun EditProductScreen(product: Product?, isNew: Boolean, onBack: () -> Unit,
     var price by rememberSaveable(product?.id) { mutableStateOf(product?.priceClp?.toString().orEmpty()) }
     var grams by rememberSaveable(product?.id) { mutableStateOf(product?.weightGrams?.toString().orEmpty()) }
     var stock by rememberSaveable(product?.id) { mutableStateOf(product?.stock?.toString() ?: "0") }
+    val context = LocalContext.current
+    var selectedPhoto by rememberSaveable(product?.id) { mutableStateOf<String?>(null) }
+    var pendingPhoto by rememberSaveable(product?.id) { mutableStateOf<String?>(null) }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        val name = pendingPhoto
+        pendingPhoto = null
+        if (success && name != null) {
+            selectedPhoto?.let { ProductPhotoStore.delete(context, it) }
+            selectedPhoto = name
+        } else {
+            ProductPhotoStore.delete(context, name)
+        }
+    }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
 
@@ -32,6 +50,22 @@ fun EditProductScreen(product: Product?, isNew: Boolean, onBack: () -> Unit,
             style = MaterialTheme.typography.headlineMedium)
         Text("Los cambios se guardan en SQLite en este teléfono. No modifican inventario externo.",
             style = MaterialTheme.typography.bodySmall)
+        val imageKey = selectedPhoto?.let { "photo:$it" } ?: product?.imageKey
+        if (imageKey != null) {
+            val preview = product?.copy(imageKey = imageKey) ?: Product(0, name, category, description, 1, 1, 0, imageKey)
+            ProductImage(preview, Modifier.fillMaxWidth().height(170.dp))
+        }
+        OutlinedButton(onClick = {
+            try {
+                val (fileName, uri) = ProductPhotoStore.create(context)
+                pendingPhoto = fileName
+                camera.launch(uri)
+            } catch (_: Exception) { error = "No se pudo abrir la cámara." }
+        }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text("Tomar fotografía") }
+        if (selectedPhoto != null) TextButton(onClick = {
+            ProductPhotoStore.delete(context, selectedPhoto)
+            selectedPhoto = null
+        }) { Text("Descartar fotografía nueva") }
         OutlinedTextField(name, { name = it }, label = { Text("Nombre") },
             modifier = Modifier.fillMaxWidth(), enabled = !busy)
         Text("Categoría", style = MaterialTheme.typography.titleMedium)
@@ -64,14 +98,18 @@ fun EditProductScreen(product: Product?, isNew: Boolean, onBack: () -> Unit,
             if (unitPrice == null || weight == null || quantity == null) {
                 error = "Ingresa valores numéricos válidos en precio, peso y stock."
             } else {
-                val draft = ProductDraft(name, category, description, unitPrice, weight, quantity)
+                val draft = ProductDraft(name, category, description, unitPrice, weight, quantity,
+                    selectedPhoto?.let { "photo:$it" })
                 error = draft.validationError()
                 if (error == null) {
                     busy = true
                     onSave(draft) { message ->
                         busy = false
                         error = message
-                        if (message == null) onBack()
+                        if (message == null) {
+                            selectedPhoto = null
+                            onBack()
+                        }
                     }
                 }
             }
