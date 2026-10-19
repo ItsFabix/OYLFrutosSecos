@@ -59,7 +59,7 @@ fun RemoteCatalogScreen(
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(product.name, style = MaterialTheme.typography.titleMedium)
                         Text("${product.category} · ${product.weightGrams} g")
-                        Text("Precio: $${product.priceClp} CLP · Stock servidor: ${product.stock}")
+                        Text("Precio: ${product.priceClp} CLP · Stock servidor: ${product.stock}")
                         Text("ID: ${product.id}", style = MaterialTheme.typography.bodySmall)
                     }
                 }
