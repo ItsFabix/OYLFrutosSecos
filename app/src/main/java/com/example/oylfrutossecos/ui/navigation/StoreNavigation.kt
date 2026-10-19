@@ -100,7 +100,11 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
         NavHost(navController = nav, startDestination = "store_home",
             modifier = Modifier.padding(padding).consumeWindowInsets(padding)) {
             composable("store_home") {
-                HomeScreen(user, state, { openTab("catalog") }, ::openProduct, catalog::load)
+                HomeScreen(user, state, { openTab("catalog") }, ::openProduct, catalog::load,
+                    onMap = { nav.navigate("pickup_map") { launchSingleTop = true } })
+            }
+            composable("pickup_map") {
+                PickupMapScreen(onBack = { nav.popBackStack() })
             }
             composable("catalog") {
                 CatalogScreen(state, catalog::search, catalog::selectCategory,
@@ -214,7 +218,8 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
             }
             composable("profile") {
                 AccountScreen(user, busy, error, onLogout,
-                    onOrdersClick = { orders.load(); nav.navigate("orders") { launchSingleTop = true } })
+                    onOrdersClick = { orders.load(); nav.navigate("orders") { launchSingleTop = true } },
+                    onMapClick = { nav.navigate("pickup_map") { launchSingleTop = true } })
             }
         }
     }

@@ -14,7 +14,7 @@ import com.example.oylfrutossecos.ui.viewmodel.CatalogState
 
 @Composable
 fun HomeScreen(user: User, state: CatalogState, onCatalog: () -> Unit,
-    onProduct: (Long) -> Unit, onRetry: () -> Unit) {
+    onProduct: (Long) -> Unit, onRetry: () -> Unit, onMap: () -> Unit) {
     val admin = user.role == UserRole.ADMIN
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -33,6 +33,11 @@ fun HomeScreen(user: User, state: CatalogState, onCatalog: () -> Unit,
                     Text("Frutos secos, semillas y deshidratados.")
                     Button(onClick = onCatalog) { Text("Explorar catálogo") }
                 }
+            }
+        }
+        item {
+            OutlinedButton(onClick = onMap, modifier = Modifier.fillMaxWidth()) {
+                Text("Ver mapa y puntos de retiro (demo)")
             }
         }
         item { Text("Demostración con productos, precios y existencias de prueba.",

@@ -70,3 +70,8 @@ dependencies {
 dependencies {
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
 }
+
+// OYL Paso 8: mapa nativo OpenStreetMap (sin WebView)
+dependencies {
+    implementation("org.osmdroid:osmdroid-android:6.1.20")
+}
