@@ -9,6 +9,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.remember
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.oylfrutossecos.R
@@ -21,6 +25,8 @@ fun priceInPesos(value: Int): String = NumberFormat.getCurrencyInstance(Locale("
 
 @Composable
 fun ProductImage(product: Product, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val bitmap = remember(product.imageKey) { ProductPhotoStore.bitmap(context, product.imageKey) }
     val resource = when (product.imageKey) {
         "fruit" -> R.drawable.oyl_fruit
         "seed" -> R.drawable.oyl_seed
@@ -28,8 +34,13 @@ fun ProductImage(product: Product, modifier: Modifier = Modifier) {
     }
     Box(modifier.clip(RoundedCornerShape(20.dp))
         .background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-        Image(painterResource(resource), contentDescription = "Ilustración de ${product.category}",
-            modifier = Modifier.fillMaxSize().padding(12.dp))
+        if (bitmap != null) {
+            Image(bitmap.asImageBitmap(), contentDescription = "Foto de ${product.name}",
+                modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        } else {
+            Image(painterResource(resource), contentDescription = "Ilustración de ${product.category}",
+                modifier = Modifier.fillMaxSize().padding(12.dp))
+        }
     }
 }
 
