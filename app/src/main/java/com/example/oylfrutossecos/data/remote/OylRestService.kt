@@ -22,7 +22,10 @@ data class ApiOrderItemRequest(val productId: Long, val quantity: Int)
 data class ApiOrderRequest(
     val requestId: String,
     val customerAlias: String,
-    val items: List<ApiOrderItemRequest>
+    val items: List<ApiOrderItemRequest>,
+    val delivery: String = "PICKUP",
+    val contactPhone: String = "",
+    val contactAddress: String = ""
 )
 data class ApiOrderItem(
     val productId: Long,
