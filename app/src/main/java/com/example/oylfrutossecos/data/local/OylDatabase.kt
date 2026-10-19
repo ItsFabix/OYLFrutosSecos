@@ -198,7 +198,7 @@ class OylDatabase private constructor(context: Context) :
             put("stock", draft.stock)
         }
         return if (id == null) {
-            values.put("image_key", when (draft.category) {
+            values.put("image_key", draft.imageKey ?: when (draft.category) {
                 "Semillas" -> "seed"
                 "Deshidratados" -> "fruit"
                 else -> "nut"
@@ -210,6 +210,8 @@ class OylDatabase private constructor(context: Context) :
             // El inventario se modifica solo mediante movimientos auditables.
             // Aunque una pantalla antigua envíe stock, no lo sobrescribimos aquí.
             values.remove("stock")
+            // La fotografía se guarda en el almacenamiento privado de la aplicación.
+            if (draft.imageKey != null) values.put("image_key", draft.imageKey)
             check(db.update("products", values, "id = ?", arrayOf(id.toString())) == 1) {
                 "El producto no existe."
             }
