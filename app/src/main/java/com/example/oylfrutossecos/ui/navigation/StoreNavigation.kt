@@ -13,6 +13,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.oylfrutossecos.ui.notifications.DemoLocalNotifier
+import com.example.oylfrutossecos.data.repository.NotificationRepository
+import com.example.oylfrutossecos.ui.viewmodel.NotificationViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -23,6 +29,7 @@ import com.example.oylfrutossecos.data.model.User
 import com.example.oylfrutossecos.data.model.DeliveryMethod
 import com.example.oylfrutossecos.data.model.MovementType
 import com.example.oylfrutossecos.data.model.UserRole
+import com.example.oylfrutossecos.data.model.NoticeKind
 import com.example.oylfrutossecos.data.repository.CartRepository
 import com.example.oylfrutossecos.data.repository.ProductRepository
 import com.example.oylfrutossecos.data.repository.OrderRepository
@@ -40,6 +47,15 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
     val catalogFactory = remember(database) { CatalogViewModel.Factory(ProductRepository(database)) }
     val cartFactory = remember(database, user.id) { CartViewModel.Factory(CartRepository(database), user.id) }
     val orderFactory = remember(database, user.id) { OrderViewModel.Factory(OrderRepository(database), user) }
+    val notificationFactory = remember(database, user.id) {
+        NotificationViewModel.Factory(NotificationRepository(database), user.id)
+    }
+    val notices: NotificationViewModel = viewModel(key = "notices-${user.id}", factory = notificationFactory)
+    val noticeState by notices.state.collectAsStateWithLifecycle()
+    var permissionGranted by remember { mutableStateOf(DemoLocalNotifier.hasPermission(context)) }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { permissionGranted = it }
     val inventoryFactory = remember(database, user.id) {
         InventoryViewModel.Factory(InventoryRepository(database), user.id)
     }
@@ -101,10 +117,40 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
             modifier = Modifier.padding(padding).consumeWindowInsets(padding)) {
             composable("store_home") {
                 HomeScreen(user, state, { openTab("catalog") }, ::openProduct, catalog::load,
-                    onMap = { nav.navigate("pickup_map") { launchSingleTop = true } })
+                    onMap = { nav.navigate("pickup_map") { launchSingleTop = true } },
+                    onNotifications = { notices.load(); nav.navigate("notifications") { launchSingleTop = true } },
+                    unreadNotices = noticeState.unreadCount)
             }
             composable("pickup_map") {
                 PickupMapScreen(onBack = { nav.popBackStack() })
+            }
+            composable("notifications") {
+                NotificationsScreen(noticeState,
+                    onBack = { nav.popBackStack() },
+                    onRefresh = notices::load,
+                    onMarkRead = notices::read,
+                    onMarkAllRead = notices::readAll,
+                    onOpen = { notice ->
+                        when (notice.target) {
+                            "orders" -> { orders.load(); nav.navigate("orders") { launchSingleTop = true } }
+                            "inventory" -> {
+                                if (admin) {
+                                    inventory?.load()
+                                    nav.navigate("inventory") { launchSingleTop = true }
+                                }
+                            }
+                            else -> Unit
+                        }
+                    },
+                    onTest = { notices.createTest { notice ->
+                        DemoLocalNotifier.show(context, notice)
+                    } },
+                    permissionGranted = permissionGranted,
+                    onRequestPermission = {
+                        if (android.os.Build.VERSION.SDK_INT >= 33)
+                            permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        else permissionGranted = true
+                    })
             }
             composable("catalog") {
                 CatalogScreen(state, catalog::search, catalog::selectCategory,
@@ -156,8 +202,12 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                         StockAdjustmentScreen(product, inventoryState,
                             onBack = { nav.popBackStack() },
                             onSave = { type: MovementType, quantity: Int, note: String ->
+                                val startedAt = System.currentTimeMillis()
                                 inventory.adjust(product.id, type, quantity, note) {
                                     catalog.load()
+                                    notices.announceIfNew(NoticeKind.STOCK_LOW, startedAt) { created ->
+                                        DemoLocalNotifier.show(context, created)
+                                    }
                                     nav.popBackStack()
                                 }
                             })
@@ -196,8 +246,12 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                     OrderConfirmationScreen(user, cartState, orderState,
                         onBack = { nav.popBackStack() },
                         onConfirm = { delivery: DeliveryMethod ->
+                            val startedAt = System.currentTimeMillis()
                             orders.place(delivery, cartState.items) {
                                 cart.reload()
+                                notices.announceIfNew(NoticeKind.ORDER_CREATED, startedAt) { created ->
+                                    DemoLocalNotifier.show(context, created)
+                                }
                                 nav.navigate("order_success") {
                                     popUpTo("cart") { inclusive = true }
                                     launchSingleTop = true
@@ -219,7 +273,11 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
             composable("profile") {
                 AccountScreen(user, busy, error, onLogout,
                     onOrdersClick = { orders.load(); nav.navigate("orders") { launchSingleTop = true } },
-                    onMapClick = { nav.navigate("pickup_map") { launchSingleTop = true } })
+                    onMapClick = { nav.navigate("pickup_map") { launchSingleTop = true } },
+                    onNotificationsClick = {
+                        notices.load()
+                        nav.navigate("notifications") { launchSingleTop = true }
+                    }, unreadNotices = noticeState.unreadCount)
             }
         }
     }

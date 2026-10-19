@@ -14,7 +14,8 @@ import com.example.oylfrutossecos.ui.viewmodel.CatalogState
 
 @Composable
 fun HomeScreen(user: User, state: CatalogState, onCatalog: () -> Unit,
-    onProduct: (Long) -> Unit, onRetry: () -> Unit, onMap: () -> Unit) {
+    onProduct: (Long) -> Unit, onRetry: () -> Unit, onMap: () -> Unit,
+    onNotifications: () -> Unit, unreadNotices: Int) {
     val admin = user.role == UserRole.ADMIN
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(20.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -33,6 +34,11 @@ fun HomeScreen(user: User, state: CatalogState, onCatalog: () -> Unit,
                     Text("Frutos secos, semillas y deshidratados.")
                     Button(onClick = onCatalog) { Text("Explorar catálogo") }
                 }
+            }
+        }
+        item {
+            OutlinedButton(onClick = onNotifications, modifier = Modifier.fillMaxWidth()) {
+                Text("Notificaciones" + if (unreadNotices > 0) " ($unreadNotices nuevas)" else "")
             }
         }
         item {

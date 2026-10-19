@@ -12,7 +12,8 @@ import com.example.oylfrutossecos.ui.components.*
 // Consulta de la cuenta y cierre de sesión. La edición se incorporará después.
 @Composable
 fun AccountScreen(user: User, busy: Boolean, error: String?,
-    onLogoutClick: () -> Unit, onOrdersClick: () -> Unit, onMapClick: () -> Unit) {
+    onLogoutClick: () -> Unit, onOrdersClick: () -> Unit, onMapClick: () -> Unit,
+    onNotificationsClick: () -> Unit, unreadNotices: Int) {
     AuthLayout(
         title = "Hola, ${user.name}",
         subtitle = if (user.role == UserRole.ADMIN) "Cuenta de administrador"
@@ -30,6 +31,10 @@ fun AccountScreen(user: User, busy: Boolean, error: String?,
         OutlinedButton(onClick = onOrdersClick, enabled = !busy,
             modifier = Modifier.fillMaxWidth()) {
             Text(if (user.role == UserRole.ADMIN) "Gestionar pedidos" else "Mis pedidos")
+        }
+        OutlinedButton(onClick = onNotificationsClick, enabled = !busy,
+            modifier = Modifier.fillMaxWidth()) {
+            Text("Notificaciones" + if (unreadNotices > 0) " ($unreadNotices)" else "")
         }
         OutlinedButton(onClick = onMapClick, enabled = !busy,
             modifier = Modifier.fillMaxWidth()) {

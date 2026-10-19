@@ -19,10 +19,12 @@ import com.example.oylfrutossecos.domain.AuthValidator
 import com.example.oylfrutossecos.domain.InventoryRules
 import com.example.oylfrutossecos.data.model.InventoryMovement
 import com.example.oylfrutossecos.data.model.MovementType
+import com.example.oylfrutossecos.data.model.AppNotice
+import com.example.oylfrutossecos.data.model.NoticeKind
 
 // Estos métodos se invocan desde Dispatchers.IO en AuthRepository.
 class OylDatabase private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "oyl_auth.db", null, 5) {
+    SQLiteOpenHelper(context.applicationContext, "oyl_auth.db", null, 6) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         db.setForeignKeyConstraintsEnabled(true)
@@ -59,6 +61,8 @@ class OylDatabase private constructor(context: Context) :
         createCartTable(db)
         createOrderTables(db)
         createInventoryTables(db)
+        createNoticeTable(db)
+        seedLowStockNotices(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -67,6 +71,10 @@ class OylDatabase private constructor(context: Context) :
         if (oldVersion < 3) createCartTable(db)
         if (oldVersion < 4) createOrderTables(db)
         if (oldVersion < 5) createInventoryTables(db)
+        if (oldVersion < 6) {
+            createNoticeTable(db)
+            seedLowStockNotices(db)
+        }
     }
 
 
@@ -289,6 +297,12 @@ class OylDatabase private constructor(context: Context) :
                 })
             }
             db.delete("cart_items", "user_id = ?", arrayOf(user.id.toString()))
+            addNotice(db, user.id, NoticeKind.ORDER_CREATED,
+                "Pedido #$orderId registrado", "Tu solicitud de prueba quedó pendiente de validación.", "orders")
+            forEachAdmin(db) { adminId ->
+                addNotice(db, adminId, NoticeKind.ORDER_CREATED,
+                    "Nuevo pedido #$orderId", "${user.name} registró un pedido de prueba por CLP $total.", "orders")
+            }
             db.setTransactionSuccessful()
             return orderId
         } finally {
@@ -338,16 +352,18 @@ class OylDatabase private constructor(context: Context) :
         val db = writableDatabase
         db.beginTransaction()
         try {
-            val current = db.rawQuery("SELECT status FROM demo_orders WHERE id = ?",
+            val (current, clientId) = db.rawQuery("SELECT status, user_id FROM demo_orders WHERE id = ?",
                 arrayOf(orderId.toString())).use { cursor ->
                 check(cursor.moveToFirst()) { "No se encontró el pedido." }
-                OrderStatus.valueOf(cursor.getString(0))
+                OrderStatus.valueOf(cursor.getString(0)) to cursor.getLong(1)
             }
             val next = current.next() ?: error("Este pedido ya se entregó.")
             val values = ContentValues().apply { put("status", next.name) }
             check(db.update("demo_orders", values, "id = ?", arrayOf(orderId.toString())) == 1) {
                 "No se pudo cambiar el estado."
             }
+            addNotice(db, clientId, NoticeKind.ORDER_STATUS,
+                "Pedido #$orderId: ${next.displayName}", "El estado de tu pedido de prueba cambió.", "orders")
             db.setTransactionSuccessful()
         } finally { db.endTransaction() }
     }
@@ -402,6 +418,16 @@ class OylDatabase private constructor(context: Context) :
                 put("created_at", System.currentTimeMillis())
             })
             check(movementId > 0L) { "No se pudo registrar el movimiento." }
+            if (newStock <= 10 && (oldStock > 10 || (newStock == 0 && oldStock > 0))) {
+                val productName = db.rawQuery("SELECT name FROM products WHERE id = ?",
+                    arrayOf(productId.toString())).use { cursor ->
+                    check(cursor.moveToFirst()) { "Producto no encontrado." }
+                    cursor.getString(0)
+                }
+                addNotice(db, adminId, NoticeKind.STOCK_LOW,
+                    if (newStock == 0) "Producto agotado" else "Alerta de stock bajo",
+                    "$productName: quedan $newStock bolsas (demo).", "inventory")
+            }
             db.setTransactionSuccessful()
             return movementId
         } finally { db.endTransaction() }
@@ -431,6 +457,95 @@ class OylDatabase private constructor(context: Context) :
         return result
     }
 
+
+
+    // Paso 9: avisos LOCALES y separados por usuario. Las notificaciones push requieren backend.
+    private fun createNoticeTable(db: SQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS app_notices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                kind TEXT NOT NULL,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                target TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                read_at INTEGER
+            )
+        """.trimIndent())
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_notices_user ON app_notices(user_id, id DESC)")
+    }
+
+    private fun addNotice(db: SQLiteDatabase, userId: Long, kind: NoticeKind,
+                          title: String, message: String, target: String): Long =
+        db.insertOrThrow("app_notices", null, ContentValues().apply {
+            put("user_id", userId)
+            put("kind", kind.name)
+            put("title", title)
+            put("message", message)
+            put("target", target)
+            put("created_at", System.currentTimeMillis())
+        })
+
+    private fun forEachAdmin(db: SQLiteDatabase, consumer: (Long) -> Unit) {
+        db.rawQuery("SELECT id FROM users WHERE role = 'ADMIN'", null).use { c ->
+            while (c.moveToNext()) consumer(c.getLong(0))
+        }
+    }
+
+    // Únicamente al CREAR o migrar la tabla: registra alertas de stock bajo preexistentes.
+    private fun seedLowStockNotices(db: SQLiteDatabase) {
+        forEachAdmin(db) { adminId ->
+            db.rawQuery("SELECT name, stock FROM products WHERE stock <= 10 ORDER BY id", null)
+                .use { c ->
+                    while (c.moveToNext()) {
+                        val stock = c.getInt(1)
+                        addNotice(db, adminId, NoticeKind.STOCK_LOW,
+                            if (stock == 0) "Producto agotado" else "Stock bajo (demo)",
+                            "${c.getString(0)}: $stock bolsas disponibles.", "inventory")
+                    }
+                }
+        }
+    }
+
+    fun readNotices(userId: Long): List<AppNotice> {
+        val notices = mutableListOf<AppNotice>()
+        readableDatabase.query("app_notices", null, "user_id = ?", arrayOf(userId.toString()),
+            null, null, "id DESC", "100").use { c ->
+            while (c.moveToNext()) notices.add(AppNotice(
+                id = c.getLong(c.getColumnIndexOrThrow("id")),
+                userId = c.getLong(c.getColumnIndexOrThrow("user_id")),
+                kind = NoticeKind.valueOf(c.getString(c.getColumnIndexOrThrow("kind"))),
+                title = c.getString(c.getColumnIndexOrThrow("title")),
+                message = c.getString(c.getColumnIndexOrThrow("message")),
+                target = c.getString(c.getColumnIndexOrThrow("target")),
+                createdAt = c.getLong(c.getColumnIndexOrThrow("created_at")),
+                readAt = c.getColumnIndexOrThrow("read_at").let { i ->
+                    if (c.isNull(i)) null else c.getLong(i)
+                }
+            ))
+        }
+        return notices
+    }
+
+    fun markNoticeRead(userId: Long, noticeId: Long) {
+        writableDatabase.execSQL(
+            "UPDATE app_notices SET read_at = ? WHERE id = ? AND user_id = ? AND read_at IS NULL",
+            arrayOf(System.currentTimeMillis(), noticeId, userId))
+    }
+
+    fun markAllNoticesRead(userId: Long) {
+        writableDatabase.execSQL(
+            "UPDATE app_notices SET read_at = ? WHERE user_id = ? AND read_at IS NULL",
+            arrayOf(System.currentTimeMillis(), userId))
+    }
+
+    fun addTestNotice(userId: Long): AppNotice {
+        val db = writableDatabase
+        val id = addNotice(db, userId, NoticeKind.TEST, "Aviso de prueba OYL",
+            "Las notificaciones locales funcionan. No es un mensaje enviado desde Internet.", "none")
+        return readNotices(userId).first { it.id == id }
+    }
 
     private fun insertUser(db: SQLiteDatabase, form: Registration, role: UserRole): Long {
         val salt = PasswordHasher.newSalt()
