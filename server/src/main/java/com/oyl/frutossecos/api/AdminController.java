@@ -37,6 +37,40 @@ public class AdminController {
         }
     }
 
+    /**
+     * Lista paginada (hasta 100) de pedidos almacenados en H2.
+     * Solo accesible con la clave administrativa configurada en el servidor.
+     */
+    @GetMapping("/orders")
+    @Transactional(readOnly = true)
+    public java.util.List<OrderService.OrderResponse> listOrders(
+            @RequestHeader(value = "X-OYL-ADMIN-KEY", required = false) String suppliedKey,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String status) {
+        authorize(suppliedKey);
+        if (limit < 1 || limit > 100) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "El limite debe estar entre 1 y 100");
+        }
+        if (status != null && !java.util.Set.of(
+                "PENDING", "CONFIRMED", "PREPARED", "DELIVERED").contains(status)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Estado no valido");
+        }
+
+        java.util.List<String> ids;
+        if (status == null) {
+            ids = jdbc.query(
+                    "SELECT id FROM demo_orders ORDER BY created_at DESC, id DESC LIMIT ?",
+                    (rs, index) -> rs.getString("id"), limit);
+        } else {
+            ids = jdbc.query(
+                    "SELECT id FROM demo_orders WHERE status = ? " +
+                    "ORDER BY created_at DESC, id DESC LIMIT ?",
+                    (rs, index) -> rs.getString("id"), status, limit);
+        }
+        return ids.stream().map(orders::byId).toList();
+    }
+
     public record StockChange(int delta, String note) {}
     public record StockResult(long productId, int oldStock, int newStock) {}
 
