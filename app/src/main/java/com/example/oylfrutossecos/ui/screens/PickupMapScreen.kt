@@ -33,20 +33,18 @@ fun PickupMapScreen(onBack: () -> Unit) {
     var externalError by remember { mutableStateOf<String?>(null) }
     val point = points.first { it.id == selectedId }
 
-    // La configuración se realiza antes de construir MapView; User-Agent identificable.
-    // remember evita volver a crear la vista al cambiar de punto o recomponer Compose.
+    // Conserva MapView entre recomposiciones y configura osmdroid antes de crearla.
     val mapView = remember(context) {
         Configuration.getInstance().load(
             context.applicationContext,
             context.applicationContext.getSharedPreferences("oyl_osmdroid", Context.MODE_PRIVATE)
         )
         // Política OSM: User-Agent estable, específico del proyecto y no el genérico com.example.*.
-        // Identidad pública del proyecto (el repositorio puede ser privado).
         Configuration.getInstance().userAgentValue =
             "OYLFrutosSecos/1.0 (+https://github.com/ItsFabix/OYLFrutosSecos)"
         MapView(context).apply {
             // URL canónica HTTPS exigida por la política de mosaicos de OSM.
-            // Nombre propio para no reutilizar en caché las imágenes 403 de MAPNIK.
+            // Caché separada de MAPNIK para evitar reutilizar respuestas 403 anteriores.
             // NO hacemos descargas masivas ni anulamos el caché de osmdroid.
             setTileSource(
                 XYTileSource(
@@ -75,7 +73,6 @@ fun PickupMapScreen(onBack: () -> Unit) {
         }
     }
 
-    // Actualizar centro y marcador solo si cambia el punto seleccionado.
     LaunchedEffect(selectedId, mapView) {
         val focus = GeoPoint(point.latitude, point.longitude)
         mapView.controller.setZoom(16.0)
@@ -134,7 +131,6 @@ fun PickupMapScreen(onBack: () -> Unit) {
             }
         }
         Text("Mapa interactivo (requiere Internet)", style = MaterialTheme.typography.titleMedium)
-        // Las calles se dibujan con la libreria nativa: ya no cargamos una web completa.
         AndroidView(
             factory = { mapView },
             modifier = Modifier.fillMaxWidth().height(310.dp)

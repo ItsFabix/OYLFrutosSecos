@@ -18,7 +18,6 @@ data class ApiProduct(
     val imageKey: String
 )
 
-// Solo para pedidos de demostración: no se integra todavía con el carrito SQLite.
 data class ApiOrderItemRequest(val productId: Long, val quantity: Int)
 data class ApiOrderRequest(
     val requestId: String,

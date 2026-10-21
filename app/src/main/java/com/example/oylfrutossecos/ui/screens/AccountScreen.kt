@@ -9,7 +9,6 @@ import com.example.oylfrutossecos.data.model.User
 import com.example.oylfrutossecos.data.model.UserRole
 import com.example.oylfrutossecos.ui.components.*
 
-// Consulta de la cuenta y cierre de sesión.
 @Composable
 fun AccountScreen(user: User, busy: Boolean, error: String?,
     onLogoutClick: () -> Unit, onOrdersClick: () -> Unit, onMapClick: () -> Unit,

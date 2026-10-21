@@ -49,15 +49,11 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    // Navegación entre pantallas
     implementation(libs.androidx.navigation.compose)
-    // ViewModel y observación del estado de la interfaz
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
-    // Íconos y animaciones
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.compose.animation)
-    // Paso 11: consumo de API REST por Retrofit
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     testImplementation(libs.junit)
@@ -69,12 +65,12 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 }
 
-// OYL Paso 7: lector QR de Google (compatible con el ejemplo 105)
+// Escaneo QR mediante Google Code Scanner.
 dependencies {
     implementation("com.google.android.gms:play-services-code-scanner:16.1.0")
 }
 
-// OYL Paso 8: mapa nativo OpenStreetMap (sin WebView)
+// Mapa nativo OpenStreetMap.
 dependencies {
     implementation("org.osmdroid:osmdroid-android:6.1.20")
 }
