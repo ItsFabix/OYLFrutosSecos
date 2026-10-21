@@ -123,10 +123,25 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
         NavHost(navController = nav, startDestination = "store_home",
             modifier = Modifier.padding(padding).consumeWindowInsets(padding)) {
             composable("store_home") {
-                HomeScreen(user, state, { openTab("catalog") }, ::openProduct, catalog::load,
+                LaunchedEffect(user.id, state.loading) {
+                    // Releer las fuentes locales al volver a Inicio y tras refrescar el catálogo.
+                    if (!state.loading) {
+                        cart.reload()
+                        orders.load()
+                        inventory?.load()
+                        notices.load()
+                    }
+                }
+                HomeScreen(user, state, cartState, orderState, inventoryState,
+                    onCatalog = { openTab("catalog") }, onProduct = ::openProduct, onRetry = catalog::load,
                     onMap = { nav.navigate("pickup_map") { launchSingleTop = true } },
                     onNotifications = { notices.load(); nav.navigate("notifications") { launchSingleTop = true } },
-                    unreadNotices = noticeState.unreadCount)
+                    unreadNotices = noticeState.unreadCount,
+                    onCart = { if (!admin) { cart.reload(); openTab("cart") } },
+                    onOrders = { orders.load(); nav.navigate("orders") { launchSingleTop = true } },
+                    onProducts = { if (admin) openTab("manage") },
+                    onInventory = { if (admin) { inventory?.load(); nav.navigate("inventory") { launchSingleTop = true } } },
+                    onRetryInventory = { inventory?.load() }, navigationEnabled = navigationEnabled)
             }
             composable("pickup_map") {
                 PickupMapScreen(onBack = { nav.popBackStack() })
