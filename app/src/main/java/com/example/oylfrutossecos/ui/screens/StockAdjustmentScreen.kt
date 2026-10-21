@@ -1,71 +1,69 @@
 package com.example.oylfrutossecos.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.oylfrutossecos.data.model.MovementType
 import com.example.oylfrutossecos.data.model.Product
-import com.example.oylfrutossecos.domain.InventoryRules
-import com.example.oylfrutossecos.ui.viewmodel.InventoryState
+import com.example.oylfrutossecos.domain.InventoryField
+import com.example.oylfrutossecos.ui.components.AdminFormField
+import com.example.oylfrutossecos.ui.viewmodel.StockAdjustmentViewModel
 
 @Composable
-fun StockAdjustmentScreen(product: Product, state: InventoryState,
-                          onBack: () -> Unit, onSave: (MovementType, Int, String) -> Unit) {
-    var type by rememberSaveable(product.id) { mutableStateOf(MovementType.ENTRY.name) }
-    var quantity by rememberSaveable(product.id) { mutableStateOf("") }
-    var note by rememberSaveable(product.id) { mutableStateOf("") }
-    var localError by remember { mutableStateOf<String?>(null) }
-    val selected = MovementType.valueOf(type)
-    val parsed = quantity.toIntOrNull()
-    val projected = if (parsed != null) runCatching {
-        InventoryRules.newStock(product.stock, selected, parsed)
-    }.getOrNull() else null
-
+fun StockAdjustmentScreen(product: Product, form: StockAdjustmentViewModel,
+                          onBack: () -> Unit) {
+    val state by form.state.collectAsStateWithLifecycle()
+    LaunchedEffect(product.stock) { form.updateStock(product.stock) }
+    val input = state.input
+    BackHandler(enabled = state.saving) {}
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        TextButton(onClick = onBack, enabled = !state.busy) { Text("← Volver al inventario") }
+        TextButton(onClick = onBack, enabled = !state.locked) { Text("← Volver al inventario") }
         Text("Registrar movimiento", style = MaterialTheme.typography.headlineMedium)
         Text(product.name, style = MaterialTheme.typography.titleLarge)
-        Text("Existencia actual: ${product.stock} bolsas", color = MaterialTheme.colorScheme.primary)
+        Text("Existencia actual: ${state.currentStock} bolsas", color = MaterialTheme.colorScheme.primary)
         Text("La entrada o salida se guardará solamente en esta app de demostración.",
             style = MaterialTheme.typography.bodySmall)
         Text("Tipo de movimiento", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = selected == MovementType.ENTRY,
-                onClick = { type = MovementType.ENTRY.name; localError = null },
-                enabled = !state.busy, label = { Text("+ Entrada") })
-            FilterChip(selected = selected == MovementType.EXIT,
-                onClick = { type = MovementType.EXIT.name; localError = null },
-                enabled = !state.busy, label = { Text("− Salida") })
-        }
-        OutlinedTextField(value = quantity, onValueChange = {
-            quantity = it.filter(Char::isDigit).take(6); localError = null
-        }, modifier = Modifier.fillMaxWidth(), enabled = !state.busy,
-            label = { Text("Cantidad de bolsas") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-        OutlinedTextField(value = note, onValueChange = { note = it.take(120); localError = null },
-            modifier = Modifier.fillMaxWidth(), enabled = !state.busy, minLines = 2,
-            label = { Text("Motivo (ej.: reposición, merma, venta local)") })
-        if (projected != null) Text("Nuevo stock estimado: $projected bolsas",
-            color = MaterialTheme.colorScheme.primary)
-        if (localError != null) Text(localError.orEmpty(), color = MaterialTheme.colorScheme.error)
-        if (state.error != null) Text(state.error, color = MaterialTheme.colorScheme.error)
-        Button(modifier = Modifier.fillMaxWidth(), enabled = !state.busy, onClick = {
-            localError = when {
-                parsed == null -> "Ingresa una cantidad numérica válida."
-                else -> runCatching {
-                    InventoryRules.newStock(product.stock, selected, parsed)
-                    InventoryRules.validateNote(note)?.let { throw IllegalArgumentException(it) }
-                }.exceptionOrNull()?.message
+            MovementType.entries.forEach { option ->
+                FilterChip(selected = input.type == option.name,
+                    onClick = { form.change(InventoryField.TYPE, option.name) }, enabled = !state.locked,
+                    leadingIcon = { Icon(if (option == MovementType.ENTRY) Icons.Default.Add else Icons.Default.Remove,
+                        contentDescription = option.label) },
+                    label = { Text(option.label) })
             }
-            if (localError == null && parsed != null) onSave(selected, parsed, note)
-        }) { Text(if (state.busy) "Guardando…" else "Guardar movimiento") }
+        }
+        Text(state.errors[InventoryField.TYPE] ?: "Entrada suma bolsas; Salida retira bolsas del stock local.",
+            color = if (state.errors[InventoryField.TYPE] != null) MaterialTheme.colorScheme.error
+            else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        AdminFormField("Cantidad de bolsas", input.quantity, { form.change(InventoryField.QUANTITY, it) },
+            Icons.Default.Inventory2, state.errors[InventoryField.QUANTITY],
+            "Entre 1 y 100.000; una salida no puede superar las existencias.", !state.locked, KeyboardType.Number)
+        AdminFormField("Motivo", input.note, { form.change(InventoryField.NOTE, it) },
+            Icons.Default.EditNote, state.errors[InventoryField.NOTE],
+            "De 3 a 120 caracteres. Ejemplos: reposición o merma.", !state.locked, minLines = 2)
+        state.projectedStock?.let { Text("Nuevo stock estimado: $it bolsas",
+            color = MaterialTheme.colorScheme.primary) }
+        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        Button(onClick = form::save, enabled = !state.locked, modifier = Modifier.fillMaxWidth()) {
+            if (state.saving) {
+                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+            } else {
+                Icon(Icons.Default.Save, contentDescription = "Guardar movimiento de inventario local")
+                Spacer(Modifier.width(8.dp))
+            }
+            Text(if (state.saving) "Guardando…" else "Guardar movimiento")
+        }
     }
 }

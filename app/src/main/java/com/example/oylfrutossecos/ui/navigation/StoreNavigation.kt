@@ -42,6 +42,8 @@ import com.example.oylfrutossecos.ui.viewmodel.CatalogViewModel
 import com.example.oylfrutossecos.ui.viewmodel.CartViewModel
 import com.example.oylfrutossecos.ui.viewmodel.OrderViewModel
 import com.example.oylfrutossecos.ui.viewmodel.InventoryViewModel
+import com.example.oylfrutossecos.ui.viewmodel.ProductFormViewModel
+import com.example.oylfrutossecos.ui.viewmodel.StockAdjustmentViewModel
 
 @Composable
 fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> Unit) {
@@ -75,6 +77,7 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
         val observed by inventory.state.collectAsStateWithLifecycle()
         observed
     } else null
+    val navigationEnabled = !busy && !orderState.busy && !state.savingProduct && inventoryState?.busy != true
     val admin = user.role == UserRole.ADMIN
     val nav = rememberNavController()
     val entry by nav.currentBackStackEntryAsState()
@@ -93,26 +96,26 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
 
     Scaffold(bottomBar = {
         NavigationBar {
-            NavigationBarItem(selected = current == "store_home", enabled = !busy && !orderState.busy,
+            NavigationBarItem(selected = current == "store_home", enabled = navigationEnabled,
                 onClick = { openTab("store_home") }, icon = { Icon(Icons.Default.Home, null) },
                 label = { Text("Inicio") })
-            NavigationBarItem(selected = current == "catalog" || current == "product/{id}", enabled = !busy && !orderState.busy,
+            NavigationBarItem(selected = current == "catalog" || current == "product/{id}", enabled = navigationEnabled,
                 onClick = { openTab("catalog") }, icon = { Icon(Icons.Default.ShoppingBag, null) },
                 label = { Text("Catálogo") })
-            NavigationBarItem(selected = current == "qr_scanner", enabled = !busy && !orderState.busy,
+            NavigationBarItem(selected = current == "qr_scanner", enabled = navigationEnabled,
                 onClick = { openTab("qr_scanner") }, icon = { Icon(Icons.Default.Search, null) },
                 label = { Text("QR") })
             if (admin) {
                 NavigationBarItem(selected = current == "manage" || current == "editor/{id}" ||
                     current == "inventory" || current == "inventory_adjust/{id}",
-                    enabled = !busy && !orderState.busy, onClick = { openTab("manage") },
+                    enabled = navigationEnabled, onClick = { openTab("manage") },
                     icon = { Icon(Icons.Default.Inventory2, null) }, label = { Text("Productos") })
             } else {
-                NavigationBarItem(selected = current == "cart", enabled = !busy && !orderState.busy,
+                NavigationBarItem(selected = current == "cart", enabled = navigationEnabled,
                     onClick = { cart.reload(); openTab("cart") },
                     icon = { Icon(Icons.Default.ShoppingCart, null) }, label = { Text("Carrito") })
             }
-            NavigationBarItem(selected = current == "profile" || current == "orders", enabled = !busy && !orderState.busy,
+            NavigationBarItem(selected = current == "profile" || current == "orders", enabled = navigationEnabled,
                 onClick = { openTab("profile") }, icon = { Icon(Icons.Default.Person, null) },
                 label = { Text("Cuenta") })
         }
@@ -218,11 +221,11 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                     val id = route.arguments?.getLong("id")
                     val product = inventoryState?.products?.firstOrNull { it.id == id }
                     if (product != null && inventoryState != null && inventory != null) {
-                        StockAdjustmentScreen(product, inventoryState,
-                            onBack = { nav.popBackStack() },
-                            onSave = { type: MovementType, quantity: Int, note: String ->
+                        val form: StockAdjustmentViewModel = viewModel(
+                            key = "stock-form-${product.id}",
+                            factory = StockAdjustmentViewModel.Factory(product.stock) { type, quantity, note, done ->
                                 val startedAt = System.currentTimeMillis()
-                                inventory.adjust(product.id, type, quantity, note) {
+                                inventory.adjust(product.id, type, quantity, note, onResult = done) {
                                     catalog.load()
                                     notices.announceIfNew(NoticeKind.STOCK_LOW, startedAt) { created ->
                                         DemoLocalNotifier.show(context, created)
@@ -230,6 +233,7 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                                     nav.popBackStack()
                                 }
                             })
+                        StockAdjustmentScreen(product, form, onBack = { nav.popBackStack() })
                     } else {
                         Column(Modifier.padding(20.dp)) {
                             Text("Producto no encontrado en el inventario")
@@ -246,11 +250,12 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                             TextButton(onClick = { nav.popBackStack() }) { Text("Volver") }
                         }
                     } else {
-                        EditProductScreen(product, id == 0L,
-                            onBack = { nav.popBackStack() },
-                            onSave = { draft, done ->
+                        val form: ProductFormViewModel = viewModel(
+                            key = "product-form-$id",
+                            factory = ProductFormViewModel.Factory(product, id == 0L) { draft, done ->
                                 catalog.saveProduct(id.takeUnless { it == 0L }, draft, done)
                             })
+                        EditProductScreen(product, form, onBack = { nav.popBackStack() })
                     }
                 }
             } else {
