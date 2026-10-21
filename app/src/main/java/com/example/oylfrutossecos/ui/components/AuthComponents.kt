@@ -18,6 +18,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.error as fieldError
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 
 @Composable
 fun AuthLayout(title: String, subtitle: String, content: @Composable ColumnScope.() -> Unit) {
@@ -49,7 +53,9 @@ fun AuthField(
     var visible by rememberSaveable { mutableStateOf(false) }
     OutlinedTextField(
         value = value, onValueChange = onChange, label = { Text(label) },
-        modifier = Modifier.fillMaxWidth(), enabled = enabled, singleLine = true,
+        modifier = Modifier.fillMaxWidth().semantics {
+            if (error != null) fieldError("$label: $error")
+        }, enabled = enabled, singleLine = true,
         shape = RoundedCornerShape(12.dp), isError = error != null,
         supportingText = if (error != null) ({ Text(error) }) else null,
         leadingIcon = { Icon(icon, contentDescription = null) },
@@ -75,7 +81,7 @@ fun AuthMessage(message: String?, isError: Boolean = true) {
             shape = RoundedCornerShape(12.dp),
             color = if (isError) MaterialTheme.colorScheme.errorContainer
                 else MaterialTheme.colorScheme.primaryContainer,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }
         ) {
             Text(message, modifier = Modifier.padding(14.dp),
                 color = if (isError) MaterialTheme.colorScheme.onErrorContainer
@@ -85,8 +91,8 @@ fun AuthMessage(message: String?, isError: Boolean = true) {
 }
 
 @Composable
-fun AuthButton(label: String, busy: Boolean, onClick: () -> Unit) {
-    Button(onClick = onClick, enabled = !busy,
+fun AuthButton(label: String, busy: Boolean, onClick: () -> Unit, enabled: Boolean = true) {
+    Button(onClick = onClick, enabled = !busy && enabled,
         modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
         shape = RoundedCornerShape(14.dp)) {
         if (busy) {
