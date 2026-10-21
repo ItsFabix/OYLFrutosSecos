@@ -22,7 +22,6 @@ class ProductRepository(private val database: OylDatabase, private val api: OylR
         database.readProducts()
     }
 
-    // La edición local todavía es una demostración; la gestión oficial será REST admin.
     suspend fun saveProduct(id: Long?, draft: ProductDraft): Long = withContext(Dispatchers.IO) {
         database.saveProduct(id, draft)
     }

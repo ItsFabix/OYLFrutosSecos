@@ -24,7 +24,21 @@ fun CartScreen(state: CartState, onChange: (Long, Int) -> Unit,
         }
         if (state.loading) {
             item { CircularProgressIndicator() }
-        } else if (state.items.isEmpty()) {
+        }
+        if (!state.loading && state.pending != null) item {
+            Card {
+                Column(Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Hay un pedido pendiente de confirmación", style = MaterialTheme.typography.titleMedium)
+                    Text("Se recuperará la solicitud guardada, aunque el stock actual haya disminuido. " +
+                        "El carrito permanecerá bloqueado hasta conocer el resultado.")
+                    Text("Solicitud: ${state.pending.requestId}", style = MaterialTheme.typography.bodySmall)
+                    Button(onClick = onCheckout, enabled = state.canCheckout,
+                        modifier = Modifier.fillMaxWidth()) { Text("Recuperar pedido pendiente") }
+                }
+            }
+        }
+        if (!state.loading && state.items.isEmpty() && state.pending == null) {
             item {
                 Card {
                     Column(Modifier.fillMaxWidth().padding(20.dp),
@@ -35,7 +49,7 @@ fun CartScreen(state: CartState, onChange: (Long, Int) -> Unit,
                     }
                 }
             }
-        } else {
+        } else if (!state.loading) {
             items(state.items, key = { it.product.id }) { item ->
                 OutlinedCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -52,23 +66,23 @@ fun CartScreen(state: CartState, onChange: (Long, Int) -> Unit,
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             OutlinedButton(onClick = { onChange(item.product.id, item.quantity - 1) },
-                                enabled = !state.busy) { Text("−") }
+                                enabled = state.canEdit) { Text("−") }
                             Text("${item.quantity}")
                             OutlinedButton(onClick = { onChange(item.product.id, item.quantity + 1) },
-                                enabled = !state.busy && item.quantity < item.product.stock) { Text("+") }
+                                enabled = state.canEdit && item.quantity < item.product.stock) { Text("+") }
                             Spacer(Modifier.weight(1f))
-                            TextButton(onClick = { onChange(item.product.id, 0) }, enabled = !state.busy) {
+                            TextButton(onClick = { onChange(item.product.id, 0) }, enabled = state.canEdit) {
                                 Text("Quitar")
                             }
                         }
-                        if (item.quantity > item.product.stock) {
+                        if (state.pending == null && item.quantity > item.product.stock) {
                             Text("El stock disminuyó. Ajusta la cantidad antes de comprar.",
                                 color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
             }
-            item {
+            if (state.pending == null) item {
                 HorizontalDivider()
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text("Total estimado", style = MaterialTheme.typography.titleLarge)
@@ -82,8 +96,7 @@ fun CartScreen(state: CartState, onChange: (Long, Int) -> Unit,
                     style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(12.dp))
                 Button(onClick = onCheckout,
-                    enabled = !state.busy && state.items.isNotEmpty() &&
-                        state.items.none { it.quantity > it.product.stock },
+                    enabled = state.canCheckout,
                     modifier = Modifier.fillMaxWidth()) {
                     Text("Continuar al pedido")
                 }

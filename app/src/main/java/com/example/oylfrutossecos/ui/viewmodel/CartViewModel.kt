@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.oylfrutossecos.data.model.CartItem
+import com.example.oylfrutossecos.data.local.PendingCheckout
 import com.example.oylfrutossecos.data.repository.CartRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,10 +17,14 @@ data class CartState(
     val loading: Boolean = true,
     val busy: Boolean = false,
     val notice: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    val pending: PendingCheckout? = null
 ) {
     val total: Long get() = items.sumOf { it.subtotalClp }
     val count: Int get() = items.sumOf { it.quantity }
+    val canEdit: Boolean get() = !loading && !busy && pending == null
+    val canCheckout: Boolean get() = !loading && !busy &&
+        (pending != null || (items.isNotEmpty() && items.none { it.quantity > it.product.stock }))
 }
 
 class CartViewModel(private val repository: CartRepository, private val userId: Long) : ViewModel() {
@@ -33,9 +38,9 @@ class CartViewModel(private val repository: CartRepository, private val userId: 
         viewModelScope.launch {
             mutable.update { it.copy(loading = true, error = null) }
             try {
-                val cart = repository.getCart(userId)
-                mutable.update { it.copy(items = cart, loading = false,
-                    notice = if (cart.isEmpty()) null else it.notice) }
+                val snapshot = repository.snapshot(userId)
+                mutable.update { it.copy(items = snapshot.items, pending = snapshot.pending, loading = false,
+                    notice = if (snapshot.items.isEmpty() || snapshot.pending != null) null else it.notice) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -50,9 +55,9 @@ class CartViewModel(private val repository: CartRepository, private val userId: 
     }
 
     fun change(productId: Long, quantity: Int, confirmation: String? = null) {
-        if (mutable.value.busy || mutable.value.loading) return
+        if (!mutable.value.canEdit) return
+        mutable.update { it.copy(busy = true, notice = null, error = null) }
         viewModelScope.launch {
-            mutable.update { it.copy(busy = true, notice = null, error = null) }
             try {
                 repository.setQuantity(userId, productId, quantity)
                 val items = repository.getCart(userId)
@@ -64,6 +69,7 @@ class CartViewModel(private val repository: CartRepository, private val userId: 
             } catch (e: IllegalStateException) {
                 mutable.update { it.copy(busy = false,
                     error = e.message ?: "No se pudo actualizar el carrito.") }
+                reload()
             } catch (_: Exception) {
                 mutable.update { it.copy(busy = false, error = "No se pudo actualizar el carrito.") }
             }

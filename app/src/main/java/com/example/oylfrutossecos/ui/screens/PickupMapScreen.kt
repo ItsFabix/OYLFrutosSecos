@@ -21,9 +21,9 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 
 /**
- * Paso 8: mapa nativo con osmdroid (sin WebView ni clave de Google Maps).
- * Usa puntos FICTICIOS de la demostracion academica; no representa sucursales reales.
- * OpenStreetMap se obtiene por Internet; los mosaicos se almacenan en cache por la libreria.
+ * Mapa nativo con osmdroid (sin WebView ni clave de Google Maps).
+ * Usa puntos FICTICIOS de la demostración académica; no representa sucursales reales.
+ * OpenStreetMap se obtiene por Internet; los mosaicos se almacenan en caché por la librería.
  */
 @Composable
 fun PickupMapScreen(onBack: () -> Unit) {
@@ -33,7 +33,7 @@ fun PickupMapScreen(onBack: () -> Unit) {
     var externalError by remember { mutableStateOf<String?>(null) }
     val point = points.first { it.id == selectedId }
 
-    // La configuracion se realiza antes de construir MapView; User-Agent identificable.
+    // La configuración se realiza antes de construir MapView; User-Agent identificable.
     // remember evita volver a crear la vista al cambiar de punto o recomponer Compose.
     val mapView = remember(context) {
         Configuration.getInstance().load(
@@ -97,9 +97,9 @@ fun PickupMapScreen(onBack: () -> Unit) {
         try {
             context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (_: ActivityNotFoundException) {
-            externalError = "No se encontro una aplicacion para abrir el mapa."
+            externalError = "No se encontró una aplicación para abrir el mapa."
         } catch (_: SecurityException) {
-            externalError = "Android no permitio abrir el mapa externo."
+            externalError = "Android no permitió abrir el mapa externo."
         }
     }
 
