@@ -25,6 +25,16 @@ public class OrderService {
                                 String delivery, String contactPhone, String contactAddress) {}
     private record LockedProduct(long id, String name, int price, int stock) {}
 
+    /** Only emitted while holding the request's product lock, before any order can commit. */
+    public static class StockRejectedException extends RuntimeException {
+        private final String requestId;
+        StockRejectedException(String requestId, String message) {
+            super(message);
+            this.requestId = requestId;
+        }
+        public String requestId() { return requestId; }
+    }
+
     @Transactional
     public OrderResponse create(CreateOrderRequest req) {
         if (req == null || req.requestId() == null || req.customerAlias() == null
@@ -73,8 +83,16 @@ public class OrderService {
                         "No existe el producto " + requested.productId());
             }
             var product = locked.get(0);
+            if (lines.isEmpty()) {
+                // Identical retries share their first product lock. The initial lookup may
+                // have run before another transaction committed; check again UNDER the lock.
+                // This must precede the stock check, including when the first order used the last bag.
+                var committed = jdbc.query("SELECT id FROM demo_orders WHERE request_id = ?",
+                        (rs, i) -> rs.getString(1), requestId);
+                if (!committed.isEmpty()) return byId(committed.get(0));
+            }
             if (requested.quantity() > product.stock()) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                throw new StockRejectedException(requestId,
                         "Stock insuficiente para " + product.name());
             }
             try {
@@ -103,7 +121,7 @@ public class OrderService {
                     "UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?",
                     line.quantity(), line.productId(), line.quantity());
             if (count != 1) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                throw new StockRejectedException(requestId,
                         "El stock cambió; vuelve a intentar");
             }
         }

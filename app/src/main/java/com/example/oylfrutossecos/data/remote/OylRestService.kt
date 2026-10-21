@@ -3,6 +3,7 @@ package com.example.oylfrutossecos.data.remote
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import okhttp3.RequestBody
 
 data class ApiHealth(val status: String, val service: String, val mode: String)
 
@@ -51,6 +52,9 @@ interface OylRestService {
 
     @POST("api/orders")
     suspend fun createOrder(@Body request: ApiOrderRequest): ApiOrderResponse
+
+    @POST("api/orders")
+    suspend fun createPersistedOrder(@Body request: RequestBody): ApiOrderResponse
 
     @GET("api/orders/{id}")
     suspend fun getOrder(@retrofit2.http.Path("id") id: String): ApiOrderResponse

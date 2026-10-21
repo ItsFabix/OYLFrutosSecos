@@ -40,8 +40,9 @@ class OrderViewModel(private val repository: OrderRepository, private val user: 
         }
     }
 
-    fun place(delivery: DeliveryMethod, expectedItems: List<CartItem>, onSuccess: () -> Unit) {
-        if (mutable.value.busy || expectedItems.isEmpty() || user.role != UserRole.CLIENT) return
+    fun place(delivery: DeliveryMethod, expectedItems: List<CartItem>,
+              onSettled: () -> Unit = {}, onSuccess: () -> Unit) {
+        if (mutable.value.busy || user.role != UserRole.CLIENT) return
         // Marcar ocupado ANTES de lanzar la coroutine evita confirmar dos veces por doble tap.
         mutable.update { it.copy(busy = true, error = null, placedId = null, placedServerId = null) }
         viewModelScope.launch {
@@ -60,6 +61,9 @@ class OrderViewModel(private val repository: OrderRepository, private val user: 
                 mutable.update { it.copy(busy = false, error = e.message ?: "No se pudo guardar el pedido.") }
             } catch (_: Exception) {
                 mutable.update { it.copy(busy = false, error = "No se pudo contactar con el servidor. Reintenta; se conservará el identificador de solicitud.") }
+            } finally {
+                mutable.update { it.copy(busy = false) }
+                onSettled()
             }
         }
     }

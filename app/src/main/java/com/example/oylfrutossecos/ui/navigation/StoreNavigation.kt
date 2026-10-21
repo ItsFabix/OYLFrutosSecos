@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import android.Manifest
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.example.oylfrutossecos.ui.notifications.DemoLocalNotifier
@@ -69,6 +70,7 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
     val state by catalog.state.collectAsStateWithLifecycle()
     val cartState by cart.state.collectAsStateWithLifecycle()
     val orderState by orders.state.collectAsStateWithLifecycle()
+    BackHandler(enabled = orderState.busy) {}
     val inventoryState = if (inventory != null) {
         val observed by inventory.state.collectAsStateWithLifecycle()
         observed
@@ -91,26 +93,26 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
 
     Scaffold(bottomBar = {
         NavigationBar {
-            NavigationBarItem(selected = current == "store_home", enabled = !busy,
+            NavigationBarItem(selected = current == "store_home", enabled = !busy && !orderState.busy,
                 onClick = { openTab("store_home") }, icon = { Icon(Icons.Default.Home, null) },
                 label = { Text("Inicio") })
-            NavigationBarItem(selected = current == "catalog" || current == "product/{id}", enabled = !busy,
+            NavigationBarItem(selected = current == "catalog" || current == "product/{id}", enabled = !busy && !orderState.busy,
                 onClick = { openTab("catalog") }, icon = { Icon(Icons.Default.ShoppingBag, null) },
                 label = { Text("Catálogo") })
-            NavigationBarItem(selected = current == "qr_scanner", enabled = !busy,
+            NavigationBarItem(selected = current == "qr_scanner", enabled = !busy && !orderState.busy,
                 onClick = { openTab("qr_scanner") }, icon = { Icon(Icons.Default.Search, null) },
                 label = { Text("QR") })
             if (admin) {
                 NavigationBarItem(selected = current == "manage" || current == "editor/{id}" ||
                     current == "inventory" || current == "inventory_adjust/{id}",
-                    enabled = !busy, onClick = { openTab("manage") },
+                    enabled = !busy && !orderState.busy, onClick = { openTab("manage") },
                     icon = { Icon(Icons.Default.Inventory2, null) }, label = { Text("Productos") })
             } else {
-                NavigationBarItem(selected = current == "cart", enabled = !busy,
+                NavigationBarItem(selected = current == "cart", enabled = !busy && !orderState.busy,
                     onClick = { cart.reload(); openTab("cart") },
                     icon = { Icon(Icons.Default.ShoppingCart, null) }, label = { Text("Carrito") })
             }
-            NavigationBarItem(selected = current == "profile" || current == "orders", enabled = !busy,
+            NavigationBarItem(selected = current == "profile" || current == "orders", enabled = !busy && !orderState.busy,
                 onClick = { openTab("profile") }, icon = { Icon(Icons.Default.Person, null) },
                 label = { Text("Cuenta") })
         }
@@ -189,7 +191,7 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                 ProductDetailScreen(state.products.firstOrNull { it.id == id }, state.loading,
                     state.error, catalog::load, { nav.popBackStack() },
                     isAdmin = admin, onEdit = { if (admin && id != null) nav.navigate("editor/$id") },
-                    cartBusy = cartState.busy || cartState.loading,
+                    cartBusy = !cartState.canEdit || orderState.busy,
                     cartNotice = cartState.notice, cartError = cartState.error,
                     onAdd = { quantity -> if (!admin && id != null) cart.add(id, quantity) },
                     onCart = { if (!admin) { cart.reload(); openTab("cart") } })
@@ -253,6 +255,7 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                 }
             } else {
                 composable("cart") {
+                    LaunchedEffect(Unit) { cart.reload() }
                     CartScreen(cartState, { id, quantity -> cart.change(id, quantity) },
                         cart::reload, { openTab("catalog") },
                         { cart.reload(); nav.navigate("order_confirmation") })
@@ -260,11 +263,12 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
             }
             if (!admin) {
                 composable("order_confirmation") {
+                    LaunchedEffect(Unit) { cart.reload() }
                     OrderConfirmationScreen(user, cartState, orderState,
                         onBack = { nav.popBackStack() },
                         onConfirm = { delivery: DeliveryMethod ->
                             val startedAt = System.currentTimeMillis()
-                            orders.place(delivery, cartState.items) {
+                            orders.place(delivery, cartState.items, onSettled = cart::reload) {
                                 cart.reload()
                                 catalog.load()
                                 notices.announceIfNew(NoticeKind.ORDER_CREATED, startedAt) { created ->

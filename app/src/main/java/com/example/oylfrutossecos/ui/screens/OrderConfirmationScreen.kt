@@ -21,17 +21,37 @@ fun OrderConfirmationScreen(
 ) {
     var selected by rememberSaveable { mutableStateOf(DeliveryMethod.PICKUP.name) }
     val method = DeliveryMethod.valueOf(selected)
+    val pending = cart.pending
     val invalidStock = cart.items.any { it.quantity > it.product.stock }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             TextButton(onClick = onBack, enabled = !state.busy) { Text("← Volver al carrito") }
-            Text("Confirmar pedido", style = MaterialTheme.typography.headlineMedium)
+            Text(if (pending == null) "Confirmar pedido" else "Recuperar pedido pendiente",
+                style = MaterialTheme.typography.headlineMedium)
             Text("Pedido de demostración conectado a Spring Boot; sin pago ni compra real.",
                 style = MaterialTheme.typography.bodySmall)
         }
         if (cart.loading) item { CircularProgressIndicator() }
+        else if (pending != null) item {
+            OutlinedCard {
+                Column(Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Solicitud: ${pending.requestId}", style = MaterialTheme.typography.bodySmall)
+                    Text("Modalidad guardada: ${pending.delivery.displayName}")
+                    Text("Se enviará exactamente la solicitud guardada. No se creará otro pedido " +
+                        "si el servidor ya lo registró. El stock y los precios actuales no impiden recuperarlo.")
+                    if (state.error != null) Text(state.error, color = MaterialTheme.colorScheme.error)
+                    Button(onClick = { onConfirm(pending.delivery) },
+                        enabled = !state.busy && cart.canCheckout,
+                        modifier = Modifier.fillMaxWidth()) {
+                        if (state.busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                        else Text("Recuperar pedido pendiente")
+                    }
+                }
+            }
+        }
         else if (cart.items.isEmpty()) item {
             Text("Tu carrito está vacío. Regresa al catálogo para agregar productos.")
         } else {
@@ -86,7 +106,7 @@ fun OrderConfirmationScreen(
                 if (state.error != null) Text(state.error, color = MaterialTheme.colorScheme.error)
                 Spacer(Modifier.height(8.dp))
                 Button(onClick = { onConfirm(method) },
-                    enabled = !state.busy && !cart.busy && !invalidStock && cart.items.isNotEmpty(),
+                    enabled = !state.busy && cart.canCheckout,
                     modifier = Modifier.fillMaxWidth()) {
                     if (state.busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                     else Text("Confirmar pedido en servidor")
