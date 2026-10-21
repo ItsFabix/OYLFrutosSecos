@@ -30,7 +30,6 @@ import androidx.navigation.compose.*
 import com.example.oylfrutossecos.data.local.OylDatabase
 import com.example.oylfrutossecos.data.model.User
 import com.example.oylfrutossecos.data.model.DeliveryMethod
-import com.example.oylfrutossecos.data.model.MovementType
 import com.example.oylfrutossecos.data.model.UserRole
 import com.example.oylfrutossecos.data.model.NoticeKind
 import com.example.oylfrutossecos.data.repository.CartRepository
