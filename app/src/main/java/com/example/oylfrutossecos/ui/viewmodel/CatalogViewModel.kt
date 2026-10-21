@@ -18,7 +18,8 @@ data class CatalogState(
     val query: String = "",
     val category: String? = null,
     val loading: Boolean = true,
-    val error: String? = null
+    val error: String? = null,
+    val savingProduct: Boolean = false
 ) {
     val categories: List<String> get() = products.map { it.category }.distinct().sorted()
     val visibleProducts: List<Product> get() = CatalogFilter.apply(products, query, category)
@@ -49,18 +50,26 @@ class CatalogViewModel(private val repository: ProductRepository) : ViewModel() 
     }
 
     fun saveProduct(id: Long?, draft: ProductDraft, onResult: (String?) -> Unit) {
+        if (mutableState.value.savingProduct) {
+            onResult("Ya hay un producto guardándose. Espera e intenta nuevamente.")
+            return
+        }
         val validation = draft.validationError()
         if (validation != null) { onResult(validation); return }
+        mutableState.update { it.copy(savingProduct = true) }
         viewModelScope.launch {
             try {
                 repository.saveProduct(id, draft)
                 val products = repository.getProducts()
-                mutableState.update { it.copy(products = products, error = null, loading = false) }
+                mutableState.update { it.copy(products = products, error = null, loading = false, savingProduct = false) }
                 onResult(null)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
+                mutableState.update { it.copy(savingProduct = false) }
                 onResult("No se pudo guardar el producto. Intenta de nuevo.")
+            } finally {
+                mutableState.update { it.copy(savingProduct = false) }
             }
         }
     }

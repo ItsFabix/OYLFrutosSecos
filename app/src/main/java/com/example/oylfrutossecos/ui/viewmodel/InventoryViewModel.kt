@@ -45,8 +45,11 @@ class InventoryViewModel(private val repository: InventoryRepository,
     }
 
     fun adjust(productId: Long, type: MovementType, quantity: Int, note: String,
-               onSuccess: () -> Unit) {
-        if (mutable.value.busy) return
+               onResult: (String?) -> Unit = {}, onSuccess: () -> Unit) {
+        if (mutable.value.busy) {
+            onResult("Ya hay un movimiento guardándose. Espera e intenta nuevamente.")
+            return
+        }
         mutable.update { it.copy(busy = true, error = null, notice = null) }
         viewModelScope.launch {
             try {
@@ -55,15 +58,24 @@ class InventoryViewModel(private val repository: InventoryRepository,
                 val movements = repository.movements()
                 mutable.update { it.copy(busy = false, loading = false, products = products,
                     movements = movements, notice = "Movimiento registrado correctamente.") }
+                onResult(null)
                 onSuccess()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (e: IllegalArgumentException) {
-                mutable.update { it.copy(busy = false, error = e.message ?: "Revisa la cantidad.") }
+                val message = e.message ?: "Revisa la cantidad."
+                mutable.update { it.copy(busy = false, error = message) }
+                onResult(message)
             } catch (e: IllegalStateException) {
-                mutable.update { it.copy(busy = false, error = e.message ?: "No se pudo guardar el movimiento.") }
+                val message = e.message ?: "No se pudo guardar el movimiento."
+                mutable.update { it.copy(busy = false, error = message) }
+                onResult(message)
             } catch (_: Exception) {
-                mutable.update { it.copy(busy = false, error = "Error al registrar el movimiento local.") }
+                val message = "Error al registrar el movimiento local."
+                mutable.update { it.copy(busy = false, error = message) }
+                onResult(message)
+            } finally {
+                mutable.update { it.copy(busy = false) }
             }
         }
     }
