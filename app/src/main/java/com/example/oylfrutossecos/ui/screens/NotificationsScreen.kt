@@ -26,7 +26,7 @@ fun NotificationsScreen(
         item {
             TextButton(onClick = onBack) { Text("← Volver") }
             Text("Notificaciones", style = MaterialTheme.typography.headlineMedium)
-            Text("Historial local de demostración. No son notificaciones push del servidor.",
+            Text("Avisos guardados en este dispositivo; no se reciben notificaciones del servidor.",
                 style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(8.dp))
             Text("${state.unreadCount} sin leer", color = MaterialTheme.colorScheme.primary)
@@ -40,14 +40,14 @@ fun NotificationsScreen(
             OutlinedCard {
                 Column(Modifier.fillMaxWidth().padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Avisos de Android (prueba)", style = MaterialTheme.typography.titleMedium)
+                    Text("Avisos en el dispositivo", style = MaterialTheme.typography.titleMedium)
                     if (!permissionGranted) {
                         Text("Activa el permiso para mostrar avisos fuera de la app.",
                             style = MaterialTheme.typography.bodySmall)
                         Button(onClick = onRequestPermission) { Text("Permitir notificaciones") }
                     }
                     Button(onClick = onTest, enabled = !state.busy) {
-                        Text("Crear aviso de prueba")
+                        Text("Crear aviso local")
                     }
                 }
             }
@@ -60,7 +60,7 @@ fun NotificationsScreen(
             Text(state.error, color = MaterialTheme.colorScheme.error)
         }
         if (!state.loading && state.items.isEmpty()) item {
-            Text("No tienes avisos todavía. Crea un pedido o usa el botón de prueba.")
+            Text("Todavía no tienes avisos. Puedes enviar uno con el botón de arriba.")
         }
         items(state.items, key = { it.id }) { notice ->
             OutlinedCard(modifier = Modifier.fillMaxWidth().clickable {

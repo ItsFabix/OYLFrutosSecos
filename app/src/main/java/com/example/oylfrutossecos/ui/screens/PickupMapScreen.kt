@@ -107,7 +107,7 @@ fun PickupMapScreen(onBack: () -> Unit) {
         TextButton(onClick = onBack) { Text("← Volver") }
         Text("Mapa y puntos de retiro", style = MaterialTheme.typography.headlineMedium)
         Text(
-            "Ubicaciones y horarios FICTICIOS para probar el proyecto. No son sucursales reales de OYL.",
+            "Ubicaciones y horarios referenciales.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error
         )
@@ -164,7 +164,7 @@ fun PickupMapScreen(onBack: () -> Unit) {
             Text(externalError.orEmpty(), color = MaterialTheme.colorScheme.error)
         }
         Text(
-            "Esta es una demostracion local. Las ubicaciones reales deben validarse antes de usarlas en produccion.",
+            "Los puntos mostrados no corresponden a sucursales confirmadas ni permiten coordinar retiros.",
             style = MaterialTheme.typography.bodySmall
         )
     }

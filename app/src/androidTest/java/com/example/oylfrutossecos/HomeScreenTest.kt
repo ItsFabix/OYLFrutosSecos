@@ -50,7 +50,7 @@ class HomeScreenTest {
         click("Mis pedidos", "orders")
         click("Explorar catálogo", "catalog")
         click("Notificaciones (2 nuevas)", "notifications")
-        click("Mapa y puntos de retiro (demo)", "map")
+        click("Puntos de retiro", "map")
         compose.onNodeWithText("Administrar productos").assertDoesNotExist()
     }
 
@@ -74,7 +74,7 @@ class HomeScreenTest {
             DeliveryMethod.PICKUP, client.phone, client.address, 1500, emptyList())
         render(admin = true, orders = OrderUiState(orders = listOf(order, order.copy(id = 2,
             status = OrderStatus.DELIVERED)), loading = false))
-        compose.onNodeWithText("Datos locales de demostración").assertExists()
+        compose.onNodeWithText("Resumen de inventario").assertExists()
         compose.onNode(hasText("Productos") and hasText("4")).assertExists()
         compose.onNode(hasText("Agotados") and hasText("1")).assertExists()
         compose.onNode(hasText("Stock bajo (1–5)") and hasText("2")).assertExists()

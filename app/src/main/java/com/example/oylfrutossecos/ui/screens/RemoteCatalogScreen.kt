@@ -25,10 +25,10 @@ fun RemoteCatalogScreen(
     ) {
         item {
             TextButton(onClick = onBack) { Text("Volver") }
-            Text("Conexión API REST", style = MaterialTheme.typography.headlineMedium)
+            Text("Conexión con el servidor", style = MaterialTheme.typography.headlineMedium)
             Text(
-                "Paso 11C · Spring Boot + Retrofit. Los productos y los pedidos " +
-                    "de esta pantalla vienen del servidor, no de SQLite.",
+                "Los productos y los pedidos " +
+                    "de esta pantalla se consultan directamente en el servidor.",
                 style = MaterialTheme.typography.bodySmall
             )
             Spacer(Modifier.height(10.dp))
@@ -42,8 +42,8 @@ fun RemoteCatalogScreen(
         } else if (state.error != null) {
             item {
                 Text(state.error, color = MaterialTheme.colorScheme.error)
-                Text("Comprueba que Spring Boot esté iniciado en tu PC y " +
-                    "que http://localhost:8080/api/health responda.")
+                Text("Comprueba que el servidor esté disponible " +
+                    "y vuelve a intentarlo.")
             }
         } else if (state.health != null) {
             item {
@@ -55,7 +55,7 @@ fun RemoteCatalogScreen(
                         Text("Modo: ${state.health.mode}")
                     }
                 }
-                Text("${state.products.size} productos recibidos por Retrofit",
+                Text("${state.products.size} productos en el servidor",
                     style = MaterialTheme.typography.titleMedium)
             }
             if (isAdmin) {
@@ -65,11 +65,11 @@ fun RemoteCatalogScreen(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("Pedido de prueba desde Android",
+                            Text("Pedido directo al servidor",
                                 style = MaterialTheme.typography.titleLarge)
-                            Text("Enviar 1 bolsa de almendras al servidor ($3.490). " +
-                                "Esto DESCUENTA el stock real de la base de datos H2 de prueba. " +
-                                "No utiliza el carrito ni genera un pedido SQLite.",
+                            Text("Solicita 1 bolsa de almendras al servidor. " +
+                                "Se descontará una unidad de su stock. " +
+                                "No usa el carrito ni se guarda en el historial de la app. No genera pagos ni envíos.",
                                 style = MaterialTheme.typography.bodyMedium)
                             val order = state.order
                             if (order == null) {
@@ -80,7 +80,7 @@ fun RemoteCatalogScreen(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(if (state.creatingOrder) "Enviando..."
-                                        else if (state.requestId == null) "Crear pedido remoto de prueba"
+                                        else if (state.requestId == null) "Registrar pedido sin pago"
                                         else "Reintentar solicitud pendiente")
                                 }
                             } else {
@@ -93,12 +93,12 @@ fun RemoteCatalogScreen(
                                     onClick = onCreateDemoOrder,
                                     enabled = !state.creatingOrder,
                                     modifier = Modifier.fillMaxWidth()
-                                ) { Text("Reenviar el MISMO pedido (prueba sin duplicar)") }
+                                ) { Text("Reenviar solicitud sin duplicar") }
                                 OutlinedButton(
                                     onClick = onNewDemoOrder,
                                     enabled = !state.creatingOrder,
                                     modifier = Modifier.fillMaxWidth()
-                                ) { Text("Preparar otro pedido de prueba") }
+                                ) { Text("Preparar otro pedido") }
                             }
                             if (state.orderError != null) {
                                 Text(state.orderError, color = MaterialTheme.colorScheme.error)
@@ -108,7 +108,7 @@ fun RemoteCatalogScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Text("Si hubo un error de conexión, reintenta la solicitud " +
-                                "pendiente: se conserva su requestId para evitar otra rebaja.",
+                                "pendiente: no se descontará stock dos veces.",
                                 style = MaterialTheme.typography.bodySmall)
                         }
                     }
@@ -129,9 +129,9 @@ fun RemoteCatalogScreen(
             }
             item {
                 Text(
-                    "Fase 11C: pedidos remotos solo en esta pantalla de pruebas. " +
-                        "El carrito, los pedidos de la app y el inventario local " +
-                        "siguen utilizando SQLite; aún no hay sincronización.",
+                    "El catálogo se consulta en el servidor. " +
+                        "La administración de inventario es local; " +
+                        "sus cambios no se sincronizan con el servidor.",
                     style = MaterialTheme.typography.bodySmall
                 )
             }

@@ -27,7 +27,7 @@ fun InventoryScreen(state: InventoryState, onBack: () -> Unit,
         item {
             TextButton(onClick = onBack) { Text("← Volver") }
             Text("Gestión de inventario", style = MaterialTheme.typography.headlineMedium)
-            Text("Administrador · movimientos guardados en SQLite (demo)",
+            Text("Administrador · inventario local",
                 style = MaterialTheme.typography.bodySmall)
             Spacer(Modifier.height(10.dp))
             OutlinedCard {
@@ -35,7 +35,7 @@ fun InventoryScreen(state: InventoryState, onBack: () -> Unit,
                     verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text("Resumen de existencias", style = MaterialTheme.typography.titleMedium)
                     Text("${state.products.size} productos · $lowCount con stock bajo o agotado")
-                    Text("Alerta de ejemplo: 5 bolsas o menos.",
+                    Text("Stock bajo: 5 bolsas o menos.",
                         style = MaterialTheme.typography.bodySmall)
                 }
             }

@@ -60,8 +60,8 @@ fun QrScannerScreen(
             modifier = Modifier.fillMaxWidth()
         ) { Text("Escanear código QR con cámara") }
 
-        Text("Prueba en emulador", style = MaterialTheme.typography.titleMedium)
-        Text("Para probar sin una segunda pantalla, escribe OYL:1 (almendras). El QR de prueba está incluido en el ZIP.",
+        Text("Buscar por código", style = MaterialTheme.typography.titleMedium)
+        Text("Ingresa el código del producto, por ejemplo OYL:1.",
             style = MaterialTheme.typography.bodySmall)
         OutlinedTextField(
             value = manualCode,
@@ -75,7 +75,7 @@ fun QrScannerScreen(
             onClick = { lastCode = manualCode.trim(); notice = null },
             enabled = manualCode.isNotBlank(),
             modifier = Modifier.fillMaxWidth()
-        ) { Text("Buscar código de prueba") }
+        ) { Text("Buscar producto") }
 
         if (notice != null) Text(notice.orEmpty(), color = MaterialTheme.colorScheme.primary)
         if (lastCode.isNotBlank()) {
@@ -105,7 +105,7 @@ fun QrScannerScreen(
                             Text(product.name, style = MaterialTheme.typography.titleLarge)
                             Text("${product.category} · ${product.weightGrams} g")
                             Text("Precio: ${priceInPesos(product.priceClp)}")
-                            Text("Stock de demostración: ${product.stock} bolsas")
+                            Text("Stock del catálogo: ${product.stock} bolsas")
                             Button(onClick = { onOpenProduct(product.id) }, modifier = Modifier.fillMaxWidth()) {
                                 Text("Ver detalle del producto")
                             }
@@ -120,7 +120,7 @@ fun QrScannerScreen(
                 }
             }
         }
-        Text("Demostración académica. Los datos se consultan desde SQLite; el inventario oficial se integrará con Spring Boot.",
+        Text("Consulta el catálogo guardado en este dispositivo. Los ajustes de inventario son locales.",
             style = MaterialTheme.typography.bodySmall)
     }
 }

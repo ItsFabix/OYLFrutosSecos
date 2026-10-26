@@ -94,7 +94,7 @@ class HomeNavigationTest {
         // Match the unread badge without relying on its count.
         compose.onNode(hasClickAction() and hasText("Notificaciones", substring = true))
             .performScrollTo().performClick()
-        compose.onNodeWithText("Historial local de demostración. No son notificaciones push del servidor.")
+        compose.onNodeWithText("Avisos guardados en este dispositivo; no se reciben notificaciones del servidor.")
             .assertIsDisplayed()
         home()
         compose.onNodeWithText("Ver carrito").assertIsDisplayed()
@@ -108,6 +108,6 @@ class HomeNavigationTest {
         home()
         open("Pedidos", "Gestionar pedidos")
         home()
-        compose.onNodeWithText("Datos locales de demostración").assertIsDisplayed()
+        compose.onNodeWithText("Resumen de inventario").assertIsDisplayed()
     }
 }

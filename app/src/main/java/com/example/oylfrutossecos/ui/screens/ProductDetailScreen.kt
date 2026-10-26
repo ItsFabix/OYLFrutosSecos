@@ -66,7 +66,7 @@ fun ProductDetailScreen(product: Product?, loading: Boolean, error: String?,
                         Text("Ver mi carrito")
                     }
                 }
-                Text("Datos de demostración. Imagen ilustrativa; sin compras reales.",
+                Text("Imagen referencial. Los pedidos no generan pagos ni envíos reales.",
                     style = MaterialTheme.typography.bodySmall)
             }
         }

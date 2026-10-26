@@ -38,11 +38,11 @@ fun AccountScreen(user: User, busy: Boolean, error: String?,
         }
         OutlinedButton(onClick = onMapClick, enabled = !busy,
             modifier = Modifier.fillMaxWidth()) {
-            Text("Mapa y puntos de retiro (demo)")
+            Text("Puntos de retiro")
         }
         OutlinedButton(onClick = onRestClick, enabled = !busy,
             modifier = Modifier.fillMaxWidth()) {
-            Text("Probar conexión REST (Paso 11)")
+            Text("Conexión con el servidor")
         }
         AuthMessage(error)
         AuthButton("Cerrar sesión", busy, onLogoutClick)

@@ -28,8 +28,8 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
             TextButton(onClick = onBack) { Text("← Volver") }
             Text(if (admin) "Gestionar pedidos" else "Mis pedidos",
                 style = MaterialTheme.typography.headlineMedium)
-            Text("Historial en SQLite: pedidos antiguos locales y copias de pedidos REST. " +
-                "La actualización remota de estados se incorporará después.",
+            Text("Historial guardado en este dispositivo. " +
+                "Los cambios de estado del servidor no se actualizan automáticamente.",
                 style = MaterialTheme.typography.bodySmall)
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -54,10 +54,10 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
                     verticalArrangement = Arrangement.spacedBy(7.dp)) {
                     Text("Pedido #${order.id}", style = MaterialTheme.typography.titleLarge)
                     if (order.remoteOrderId != null) {
-                        Text("Registrado en Spring Boot: ${order.remoteOrderId}",
+                        Text("Registrado en el servidor: ${order.remoteOrderId}",
                             style = MaterialTheme.typography.bodySmall)
                     } else {
-                        Text("Pedido local antiguo (demostración)",
+                        Text("Pedido guardado solo en este dispositivo",
                             style = MaterialTheme.typography.bodySmall)
                     }
                     Text(SimpleDateFormat("dd/MM/yyyy · HH:mm", Locale("es", "CL"))
