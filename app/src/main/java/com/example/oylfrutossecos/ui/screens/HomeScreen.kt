@@ -45,8 +45,8 @@ fun HomeScreen(
             item {
                 Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Datos locales de demostración", style = MaterialTheme.typography.titleMedium)
-                        Text("Inventario guardado en este dispositivo e historial local; no representan una consulta sincronizada del backend.",
+                        Text("Resumen de inventario", style = MaterialTheme.typography.titleMedium)
+                        Text("Inventario e historial guardados en este dispositivo, sin sincronización automática con el servidor.",
                             style = MaterialTheme.typography.bodySmall)
                         val products = inventoryState?.takeIf { !it.loading && it.error == null }?.products
                         val pending = orderState.takeIf { !it.loading && it.error == null }
@@ -106,13 +106,13 @@ fun HomeScreen(
                 HomeAccess("Explorar catálogo", Icons.Default.ShoppingBag, navigationEnabled, onCatalog)
                 HomeAccess("Notificaciones" + if (unreadNotices > 0) " ($unreadNotices nuevas)" else "",
                     Icons.Default.Notifications, navigationEnabled, onNotifications)
-                HomeAccess("Mapa y puntos de retiro (demo)", Icons.Default.LocationOn, navigationEnabled, onMap)
+                HomeAccess("Puntos de retiro", Icons.Default.LocationOn, navigationEnabled, onMap)
             }
         }
         if (!admin) {
             item {
                 Text("Productos destacados", style = MaterialTheme.typography.titleLarge)
-                Text("Productos, precios y existencias de demostración.", style = MaterialTheme.typography.bodySmall)
+                Text("Explora frutos secos, semillas y deshidratados.", style = MaterialTheme.typography.bodySmall)
             }
             when {
                 state.loading -> item { CircularProgressIndicator() }

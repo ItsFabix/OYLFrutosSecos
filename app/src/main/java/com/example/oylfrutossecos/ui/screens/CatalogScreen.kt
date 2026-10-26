@@ -41,7 +41,7 @@ fun CatalogScreen(state: CatalogState, onSearch: (String) -> Unit,
                 }
             }
         }
-        item { Text("Catálogo de demostración · precios y stock de prueba",
+        item { Text("Consulta precios y disponibilidad.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         when {
             state.loading -> item { CircularProgressIndicator() }

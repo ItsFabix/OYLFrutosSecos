@@ -30,7 +30,7 @@ fun OrderConfirmationScreen(
             TextButton(onClick = onBack, enabled = !state.busy) { Text("← Volver al carrito") }
             Text(if (pending == null) "Confirmar pedido" else "Recuperar pedido pendiente",
                 style = MaterialTheme.typography.headlineMedium)
-            Text("Pedido de demostración conectado a Spring Boot; sin pago ni compra real.",
+            Text("Este pedido no es una compra real y no genera pagos ni envíos.",
                 style = MaterialTheme.typography.bodySmall)
         }
         if (cart.loading) item { CircularProgressIndicator() }
@@ -97,7 +97,7 @@ fun OrderConfirmationScreen(
                 }
             }
             item {
-                Text("Spring Boot verificará las existencias y descontará stock en H2 de prueba. " +
+                Text("El servidor verificará las existencias y actualizará su stock. " +
                     "El total final se calculará con los precios del servidor. " +
                     "Si falla la conexión, podrás reintentar la misma solicitud.",
                     style = MaterialTheme.typography.bodySmall)
@@ -109,7 +109,7 @@ fun OrderConfirmationScreen(
                     enabled = !state.busy && cart.canCheckout,
                     modifier = Modifier.fillMaxWidth()) {
                     if (state.busy) CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
-                    else Text("Confirmar pedido en servidor")
+                    else Text("Confirmar pedido")
                 }
             }
         }

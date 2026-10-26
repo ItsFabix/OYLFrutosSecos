@@ -24,14 +24,14 @@ object AuthValidator {
         }
         if (form.email.trim().length > 120 ||
             !Regex("[^\\s@]+@[^\\s@]+\\.[^\\s@]+").matches(form.email.trim())) {
-            put("email", "Ingresa un correo de prueba válido")
+            put("email", "Ingresa un correo electrónico válido")
         }
         val phone = form.phone.replace(" ", "").replace("-", "")
         if (!Regex("(?:\\+56)?9[0-9]{8}").matches(phone)) {
             put("phone", "Usa 9 dígitos comenzando por 9, o +56 seguido de ellos")
         }
         if (form.address.trim().length !in 5..160) {
-            put("address", "Ingresa una dirección de prueba de 5 a 160 caracteres")
+            put("address", "Ingresa una dirección de 5 a 160 caracteres")
         }
         if (form.password.length !in 8..128 ||
             form.password.none { it.isLetter() } ||

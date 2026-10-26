@@ -16,13 +16,13 @@ fun OrderSuccessScreen(orderId: Long?, serverOrderId: String? = null,
         Spacer(Modifier.height(14.dp))
         Text("Pedido registrado", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(8.dp))
-        Text(if (orderId == null) "Pedido de demostración" else "Número en tu historial: #$orderId")
+        Text(if (orderId == null) "Solicitud registrada" else "Número en tu historial: #$orderId")
         if (serverOrderId != null) Text("ID servidor: $serverOrderId",
             style = MaterialTheme.typography.bodySmall)
         Text("Estado: Pendiente de validación")
         Spacer(Modifier.height(8.dp))
-        Text("Pedido ficticio enviado al servidor Spring Boot y cacheado en SQLite. " +
-            "No hay cobro real ni envío a una tienda.",
+        Text("La solicitud se registró en el servidor y en tu historial. " +
+            "No corresponde a una compra real ni genera pagos o envíos.",
             style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(24.dp))
         Button(onClick = onOrders, modifier = Modifier.fillMaxWidth()) { Text("Ver mis pedidos") }

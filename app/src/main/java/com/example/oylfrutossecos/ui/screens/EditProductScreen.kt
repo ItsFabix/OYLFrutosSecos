@@ -43,7 +43,7 @@ fun EditProductScreen(product: Product?, form: ProductFormViewModel, onBack: () 
         TextButton(onClick = onBack, enabled = enabled) { Text("Volver") }
         Text(if (state.isNew) "Nuevo producto" else "Editar producto",
             style = MaterialTheme.typography.headlineMedium)
-        Text("Los cambios se guardan en SQLite en este teléfono. No modifican inventario externo.",
+        Text("Los cambios se guardan en este dispositivo y no se envían al servidor.",
             style = MaterialTheme.typography.bodySmall)
         state.imageKey?.let { key ->
             val preview = product?.copy(imageKey = key)

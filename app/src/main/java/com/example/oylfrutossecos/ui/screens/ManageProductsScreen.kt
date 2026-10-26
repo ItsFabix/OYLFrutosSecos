@@ -17,7 +17,7 @@ fun ManageProductsScreen(state: CatalogState, onNew: () -> Unit, onEdit: (Long) 
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         item {
             Text("Gestión de productos", style = MaterialTheme.typography.headlineMedium)
-            Text("Administrador · datos locales de demostración")
+            Text("Administrador · productos guardados en este dispositivo")
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = onNew) { Text("+ Crear producto") }

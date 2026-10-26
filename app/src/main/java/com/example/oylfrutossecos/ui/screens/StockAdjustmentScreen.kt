@@ -31,7 +31,7 @@ fun StockAdjustmentScreen(product: Product, form: StockAdjustmentViewModel,
         Text("Registrar movimiento", style = MaterialTheme.typography.headlineMedium)
         Text(product.name, style = MaterialTheme.typography.titleLarge)
         Text("Existencia actual: ${state.currentStock} bolsas", color = MaterialTheme.colorScheme.primary)
-        Text("La entrada o salida se guardará solamente en esta app de demostración.",
+        Text("El movimiento se guardará en este dispositivo y no actualizará el inventario del servidor.",
             style = MaterialTheme.typography.bodySmall)
         Text("Tipo de movimiento", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -61,8 +61,8 @@ class AuthFormsUiTest {
         registerButton().performScrollTo().performClick()
         field("Nombre").performScrollTo().performTextInput(valid.name)
         field("Nombre").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Error).not())
-        field("Correo de prueba").assert(SemanticsMatcher.expectValue(SemanticsProperties.Error,
-            "Correo de prueba: Ingresa un correo de prueba válido"))
+        field("Correo electrónico").assert(SemanticsMatcher.expectValue(SemanticsProperties.Error,
+            "Correo electrónico: Ingresa un correo electrónico válido"))
         field("Alias").performScrollTo().performTextInput(valid.alias)
         compose.runOnIdle {
             assertFalse(auth.registerState.errors.containsKey("alias"))
@@ -175,7 +175,7 @@ class AuthFormsUiTest {
             assertEquals(valid.password, auth.loginState.password)
             assertEquals(UserRole.ADMIN, auth.loginState.role)
         }
-        field("Correo de prueba").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Error))
+        field("Correo electrónico").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Error))
     }
 
     // Registration has a title and button with the same text; select the actionable node.

@@ -43,6 +43,6 @@ class CheckoutRecoveryUiTest {
         compose.onAllNodesWithText("Recuperar pedido pendiente").filter(hasClickAction())
             .onFirst().assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals(DeliveryMethod.DELIVERY, delivery) }
-        compose.onNodeWithText("Confirmar pedido en servidor").assertDoesNotExist()
+        compose.onNodeWithText("Confirmar pedido").assertDoesNotExist()
     }
 }
