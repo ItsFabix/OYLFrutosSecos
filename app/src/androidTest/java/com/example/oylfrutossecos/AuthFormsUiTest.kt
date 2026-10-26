@@ -62,7 +62,7 @@ class AuthFormsUiTest {
         field("Nombre").performScrollTo().performTextInput(valid.name)
         field("Nombre").assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Error).not())
         field("Correo electrónico").assert(SemanticsMatcher.expectValue(SemanticsProperties.Error,
-            "Correo electrónico: Ingresa un correo de prueba válido"))
+            "Correo electrónico: Ingresa un correo electrónico válido"))
         field("Alias").performScrollTo().performTextInput(valid.alias)
         compose.runOnIdle {
             assertFalse(auth.registerState.errors.containsKey("alias"))
