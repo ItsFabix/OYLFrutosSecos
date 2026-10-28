@@ -71,6 +71,13 @@ public class AdminController {
         return new StockResult(id, oldStock, (int) updated);
     }
 
+    @GetMapping("/orders")
+    public java.util.List<OrderService.OrderResponse> listOrders(
+            @RequestHeader(value = "X-OYL-ADMIN-KEY", required = false) String suppliedKey) {
+        authorize(suppliedKey);
+        return orders.listAll();
+    }
+
     @PostMapping("/orders/{id}/advance")
     @Transactional
     public OrderService.OrderResponse advance(

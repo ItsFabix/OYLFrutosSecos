@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.oylfrutossecos.data.model.*
 import com.example.oylfrutossecos.data.repository.OrderRepository
+import com.example.oylfrutossecos.data.repository.orderError
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +14,8 @@ import kotlinx.coroutines.launch
 
 data class OrderUiState(
     val orders: List<OrderSummary> = emptyList(),
+    val remoteFresh: Boolean = false,
+    val hasAdminKey: Boolean = false,
     val loading: Boolean = true,
     val busy: Boolean = false,
     val error: String? = null,
@@ -23,15 +26,39 @@ data class OrderUiState(
 class OrderViewModel(private val repository: OrderRepository, private val user: User) : ViewModel() {
     private val mutable = MutableStateFlow(OrderUiState())
     val state = mutable.asStateFlow()
+    private var adminKey = ""
+    private var loadJob: kotlinx.coroutines.Job? = null
+    private var adminJob: kotlinx.coroutines.Job? = null
     init { load() }
+
+    fun setAdminKey(key: String) {
+        if (user.role != UserRole.ADMIN || mutable.value.busy) return
+        adminKey = key
+        mutable.update { it.copy(hasAdminKey = key.isNotBlank()) }
+        load()
+    }
+
+    fun clearAdminSession() {
+        if (user.role != UserRole.ADMIN) return
+        adminJob?.cancel()
+        loadJob?.cancel()
+        adminKey = ""
+        mutable.value = OrderUiState(loading = false)
+    }
+
+    override fun onCleared() {
+        adminKey = ""
+        super.onCleared()
+    }
 
     fun load() {
         if (mutable.value.busy) return
-        viewModelScope.launch {
-            mutable.update { it.copy(loading = true, error = null) }
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            mutable.update { it.copy(loading = true, error = null, remoteFresh = false) }
             try {
-                val orders = repository.getOrders(user)
-                mutable.update { it.copy(orders = orders, loading = false) }
+                val history = repository.getOrders(user, adminKey)
+                mutable.update { it.copy(orders = history.orders, loading = false, error = history.error, remoteFresh = history.remoteFresh) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -68,20 +95,21 @@ class OrderViewModel(private val repository: OrderRepository, private val user: 
         }
     }
 
-    fun advance(orderId: Long) {
+    fun advance(order: OrderSummary) {
         if (user.role != UserRole.ADMIN || mutable.value.busy) return
+        if (mutable.value.loading || (order.remoteOrderId != null && !mutable.value.remoteFresh)) return
         mutable.update { it.copy(busy = true, error = null) }
-        viewModelScope.launch {
+        adminJob = viewModelScope.launch {
             try {
-                repository.advanceStatus(orderId)
-                val orders = repository.getOrders(user)
-                mutable.update { it.copy(busy = false, orders = orders, loading = false) }
+                repository.advanceStatus(order, adminKey)
+                val history = repository.getOrders(user, adminKey)
+                mutable.update { it.copy(busy = false, orders = history.orders, loading = false, error = history.error, remoteFresh = history.remoteFresh) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (e: IllegalStateException) {
                 mutable.update { it.copy(busy = false, error = e.message ?: "Estado no válido.") }
-            } catch (_: Exception) {
-                mutable.update { it.copy(busy = false, error = "No se pudo actualizar el pedido.") }
+            } catch (e: Exception) {
+                mutable.update { it.copy(busy = false, remoteFresh = false, error = orderError(e)) }
             }
         }
     }

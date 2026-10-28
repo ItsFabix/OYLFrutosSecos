@@ -39,7 +39,10 @@ data class ApiOrderResponse(
     val customerAlias: String,
     val status: String,
     val totalClp: Long,
-    val items: List<ApiOrderItem>
+    val items: List<ApiOrderItem>,
+    val delivery: String = "PICKUP",
+    val contactPhone: String = "",
+    val contactAddress: String = ""
 )
 
 interface OylRestService {
@@ -54,6 +57,13 @@ interface OylRestService {
 
     @POST("api/orders")
     suspend fun createPersistedOrder(@Body request: RequestBody): ApiOrderResponse
+
+    @GET("api/admin/orders")
+    suspend fun adminOrders(@retrofit2.http.Header("X-OYL-ADMIN-KEY") key: String): List<ApiOrderResponse>
+
+    @POST("api/admin/orders/{id}/advance")
+    suspend fun advanceOrder(@retrofit2.http.Path("id") id: String,
+        @retrofit2.http.Header("X-OYL-ADMIN-KEY") key: String): ApiOrderResponse
 
     @GET("api/orders/{id}")
     suspend fun getOrder(@retrofit2.http.Path("id") id: String): ApiOrderResponse

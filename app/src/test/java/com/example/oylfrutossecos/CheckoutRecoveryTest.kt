@@ -47,6 +47,8 @@ class CheckoutRecoveryTest {
     }
 
     private inner class Server(private val store: MemoryStore) : OylRestService {
+        override suspend fun adminOrders(key: String): List<ApiOrderResponse> = error("Unused")
+        override suspend fun advanceOrder(id: String, key: String): ApiOrderResponse = error("Unused")
         val bodies = mutableListOf<String>()
         val orders = mutableMapOf<String, ApiOrderResponse>()
         var stock = 1

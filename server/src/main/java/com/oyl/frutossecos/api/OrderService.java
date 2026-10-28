@@ -129,6 +129,12 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    public List<OrderResponse> listAll() {
+        return jdbc.query("SELECT id FROM demo_orders ORDER BY created_at DESC, id DESC",
+                (rs, i) -> rs.getString(1)).stream().map(this::byId).toList();
+    }
+
+    @Transactional(readOnly = true)
     public OrderResponse byId(String id) {
         var rows = jdbc.query("""
                 SELECT id, request_id, customer_alias, status, total_clp, delivery,

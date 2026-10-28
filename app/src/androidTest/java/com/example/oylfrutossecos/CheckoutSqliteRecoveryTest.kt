@@ -65,6 +65,91 @@ class CheckoutSqliteRecoveryTest {
 
     @After fun closeOnlyTheTestDatabase() { database.close() }
 
+    @Test fun purelyLocalOrderStillAdvancesAndCreatesNoticesWithoutChangingStock() {
+        val stock = database.readProducts().single { it.id == 1L }.stock
+        val id = database.placeDemoOrder(client, DeliveryMethod.PICKUP, database.readCart(client.id))
+        assertTrue(database.readCart(client.id).isEmpty())
+        for (status in listOf(OrderStatus.CONFIRMED, OrderStatus.PREPARED, OrderStatus.DELIVERED)) {
+            database.advanceDemoOrder(id)
+            val order = database.readOrders(client.id).single { it.id == id }
+            assertEquals(status, order.status)
+            assertNull(order.remoteOrderId)
+        }
+        assertEquals(stock, database.readProducts().single { it.id == 1L }.stock)
+        assertEquals(3, database.readNotices(client.id).count { it.kind == NoticeKind.ORDER_STATUS })
+    }
+
+    @Test fun repositoryRefreshesRemoteStatesDeduplicatesAndKeepsLocalOrdersOnFailure() = runBlocking {
+        val localId = database.placeDemoOrder(otherClient, DeliveryMethod.PICKUP, database.readCart(otherClient.id))
+        val pending = createPending()
+        var serverOrder = response(pending)
+        RemoteCheckoutCache(database).complete(client, serverOrder)
+        var offline = false
+        val api = object : OylRestService {
+            override suspend fun adminOrders(key: String): List<ApiOrderResponse> {
+                if (offline) throw IOException("offline")
+                check(key == "session-test-key")
+                return listOf(serverOrder)
+            }
+            override suspend fun advanceOrder(id: String, key: String): ApiOrderResponse {
+                check(key == "session-test-key" && id == serverOrder.id)
+                serverOrder = serverOrder.copy(status = OrderStatus.valueOf(serverOrder.status).next()!!.name)
+                return serverOrder
+            }
+            override suspend fun getOrder(id: String): ApiOrderResponse {
+                if (offline) throw IOException("offline")
+                check(id == serverOrder.id)
+                return serverOrder
+            }
+            override suspend fun products(): List<ApiProduct> = error("Unused")
+            override suspend fun health(): ApiHealth = error("Unused")
+            override suspend fun createOrder(request: ApiOrderRequest): ApiOrderResponse = error("Unused")
+            override suspend fun createPersistedOrder(request: RequestBody): ApiOrderResponse = error("Unused")
+        }
+        val repository = com.example.oylfrutossecos.data.repository.OrderRepository(database, api)
+        val admin = database.authenticate("admin", "Admin1234", UserRole.ADMIN)!!
+        val withoutKey = repository.getOrders(admin)
+        assertFalse(withoutKey.remoteFresh)
+        assertNotNull(withoutKey.error)
+        for (status in listOf(OrderStatus.CONFIRMED, OrderStatus.PREPARED, OrderStatus.DELIVERED)) {
+            val history = repository.getOrders(admin, "session-test-key")
+            assertEquals(2, history.orders.size)
+            assertEquals(1, history.orders.count { it.remoteOrderId == serverOrder.id })
+            repository.advanceStatus(history.orders.single { it.remoteOrderId != null }, "session-test-key")
+            val refreshed = repository.getOrders(admin, "session-test-key")
+            assertEquals(status, refreshed.orders.single { it.remoteOrderId != null }.status)
+            val clientHistory = repository.getOrders(client)
+            assertEquals(status, clientHistory.orders.single().status)
+        }
+        offline = true
+        val fallback = repository.getOrders(admin, "session-test-key")
+        assertFalse(fallback.remoteFresh)
+        assertNotNull(fallback.error)
+        assertTrue(fallback.orders.any { it.id == localId && it.remoteOrderId == null })
+        repository.advanceStatus(fallback.orders.single { it.id == localId }, "")
+        assertEquals(OrderStatus.CONFIRMED, database.readOrders(otherClient.id).single().status)
+        offline = false
+        lateinit var vm: com.example.oylfrutossecos.ui.viewmodel.OrderViewModel
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.runOnMainSync {
+            vm = com.example.oylfrutossecos.ui.viewmodel.OrderViewModel(repository, admin)
+            vm.setAdminKey("session-test-key")
+        }
+        kotlinx.coroutines.withTimeout(5000) {
+            while (vm.state.value.loading) kotlinx.coroutines.delay(10)
+        }
+        assertTrue(vm.state.value.hasAdminKey)
+        assertTrue(vm.state.value.remoteFresh)
+        instrumentation.runOnMainSync { vm.clearAdminSession(); vm.load() }
+        kotlinx.coroutines.withTimeout(5000) {
+            while (vm.state.value.loading) kotlinx.coroutines.delay(10)
+        }
+        assertFalse(vm.state.value.hasAdminKey)
+        assertFalse(vm.state.value.remoteFresh)
+        assertNotNull(vm.state.value.error)
+        instrumentation.runOnMainSync { vm.clearAdminSession() }
+    }
+
     private fun createPending(legacy: Boolean = false): PendingCheckout {
         val store = RemoteCheckoutCache(database)
         val request = ApiOrderRequest(UUID.randomUUID().toString(), client.alias,
@@ -137,6 +222,8 @@ class CheckoutSqliteRecoveryTest {
         var discounts = 0
         var loseResponse = true
         val api = object : OylRestService {
+        override suspend fun adminOrders(key: String): List<ApiOrderResponse> = error("Unused")
+        override suspend fun advanceOrder(id: String, key: String): ApiOrderResponse = error("Unused")
             override suspend fun createPersistedOrder(request: RequestBody): ApiOrderResponse {
                 val json = Buffer().also { request.writeTo(it) }.readUtf8()
                 bodies += json

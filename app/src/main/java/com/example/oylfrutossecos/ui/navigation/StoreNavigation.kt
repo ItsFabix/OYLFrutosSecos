@@ -66,6 +66,9 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
     val catalog: CatalogViewModel = viewModel(key = "catalog-${user.id}", factory = catalogFactory)
     val cart: CartViewModel = viewModel(key = "cart-${user.id}", factory = cartFactory)
     val orders: OrderViewModel = viewModel(key = "orders-${user.id}", factory = orderFactory)
+    DisposableEffect(orders) {
+        onDispose { orders.clearAdminSession() }
+    }
     val inventory: InventoryViewModel? = if (user.role == UserRole.ADMIN)
         viewModel(key = "inventory-${user.id}", factory = inventoryFactory) else null
     val state by catalog.state.collectAsStateWithLifecycle()
@@ -308,12 +311,13 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                 }
             }
             composable("orders") {
+                LaunchedEffect(Unit) { orders.load() }
                 OrdersScreen(orderState, admin,
                     onBack = { nav.popBackStack() },
-                    onRetry = orders::load, onAdvance = orders::advance)
+                    onRetry = orders::load, onAdvance = orders::advance, onAdminKey = orders::setAdminKey)
             }
             composable("profile") {
-                AccountScreen(user, busy, error, onLogout,
+                AccountScreen(user, busy, error, { orders.clearAdminSession(); onLogout() },
                     onOrdersClick = { orders.load(); nav.navigate("orders") { launchSingleTop = true } },
                     onMapClick = { nav.navigate("pickup_map") { launchSingleTop = true } },
                     onNotificationsClick = {

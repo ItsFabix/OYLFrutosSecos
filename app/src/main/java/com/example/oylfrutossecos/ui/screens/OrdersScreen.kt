@@ -19,7 +19,9 @@ import java.util.Locale
 
 @Composable
 fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
-    onRetry: () -> Unit, onAdvance: (Long) -> Unit) {
+    onRetry: () -> Unit, onAdvance: (OrderSummary) -> Unit,
+    onAdminKey: (String) -> Unit = {}) {
+    var adminKey by remember { mutableStateOf("") }
     var filter by rememberSaveable { mutableStateOf("ALL") }
     val shown = state.orders.filter { filter == "ALL" || it.status.name == filter }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp),
@@ -28,9 +30,27 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
             TextButton(onClick = onBack) { Text("← Volver") }
             Text(if (admin) "Gestionar pedidos" else "Mis pedidos",
                 style = MaterialTheme.typography.headlineMedium)
-            Text("Historial guardado en este dispositivo. " +
-                "Los cambios de estado del servidor no se actualizan automáticamente.",
+            Text("Actualiza para consultar el estado del servidor. Se conserva el historial local.",
                 style = MaterialTheme.typography.bodySmall)
+            if (admin) {
+                Text("Clave administrativa de demostración: solo en memoria durante esta sesión. No es autenticación de producción.",
+                    style = MaterialTheme.typography.bodySmall)
+                OutlinedTextField(value = adminKey, onValueChange = { adminKey = it },
+                    label = { Text("Clave administrativa REST") }, singleLine = true,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth())
+                Button(enabled = adminKey.isNotBlank() && !state.busy, onClick = {
+                    onAdminKey(adminKey)
+                    adminKey = ""
+                }) { Text("Usar clave y consultar") }
+                if (state.hasAdminKey) TextButton(enabled = !state.busy, onClick = {
+                    adminKey = ""
+                    onAdminKey("")
+                }) { Text("Olvidar clave") }
+            }
+            TextButton(onClick = onRetry, enabled = !state.busy && !state.loading) { Text("Actualizar pedidos") }
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = filter == "ALL", onClick = { filter = "ALL" }, label = { Text("Todos") })
@@ -48,11 +68,11 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
         if (!state.loading && shown.isEmpty()) item {
             Card { Text("Aún no hay pedidos con este filtro.", Modifier.padding(18.dp)) }
         }
-        items(shown, key = { it.id }) { order ->
+        items(shown, key = { it.remoteOrderId?.let { id -> "rest:$id" } ?: "local:${it.id}" }) { order ->
             OutlinedCard {
                 Column(Modifier.fillMaxWidth().padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Text("Pedido #${order.id}", style = MaterialTheme.typography.titleLarge)
+                    Text("Pedido #${order.remoteOrderId ?: order.id}", style = MaterialTheme.typography.titleLarge)
                     if (order.remoteOrderId != null) {
                         Text("Registrado en el servidor: ${order.remoteOrderId}",
                             style = MaterialTheme.typography.bodySmall)
@@ -60,7 +80,7 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
                         Text("Pedido guardado solo en este dispositivo",
                             style = MaterialTheme.typography.bodySmall)
                     }
-                    Text(SimpleDateFormat("dd/MM/yyyy · HH:mm", Locale("es", "CL"))
+                    if (order.createdAt > 0) Text(SimpleDateFormat("dd/MM/yyyy · HH:mm", Locale("es", "CL"))
                         .format(Date(order.createdAt)), style = MaterialTheme.typography.bodySmall)
                     if (admin) Text("Cliente: ${order.customerName}")
                     Text("Estado: ${order.status.displayName}", color = MaterialTheme.colorScheme.primary)
@@ -75,8 +95,9 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
                     }
                     Text("Total: ${priceInPesos(order.totalClp.toInt())}",
                         style = MaterialTheme.typography.titleMedium)
-                    if (admin && order.remoteOrderId == null && order.status.next() != null) {
-                        Button(onClick = { onAdvance(order.id) }, enabled = !state.busy,
+                    if (admin && order.status.next() != null) {
+                        Button(onClick = { onAdvance(order) }, enabled = !state.busy && !state.loading &&
+                                (order.remoteOrderId == null || state.remoteFresh),
                             modifier = Modifier.fillMaxWidth()) {
                             Text("Marcar como ${order.status.next()?.displayName}")
                         }
