@@ -28,3 +28,8 @@ local.properties
 .env.*
 keystore.properties
 signing.properties
+@'
+*.zip
+/referencias-diseno/
+/matriz-anchos/
+'@ | Add-Content .gitignore

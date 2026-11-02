@@ -5,12 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.SystemBarStyle
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -21,20 +21,18 @@ import com.example.oylfrutossecos.ui.screens.*
 import com.example.oylfrutossecos.ui.navigation.StoreNavigation
 import com.example.oylfrutossecos.ui.theme.OYLFrutosSecosTheme
 import com.example.oylfrutossecos.ui.viewmodel.AuthViewModel
+import com.example.oylfrutossecos.ui.components.storeMessage
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
+        )
         setContent {
             OYLFrutosSecosTheme {
-                MaterialTheme(colorScheme = lightColorScheme(
-                    primary = Color(0xFF285943), onPrimary = Color.White,
-                    primaryContainer = Color(0xFFE1ECDD),
-                    onPrimaryContainer = Color(0xFF173C29),
-                    background = Color(0xFFFFF8EE), surface = Color(0xFFFFF8EE),
-                    onBackground = Color(0xFF282D27), onSurface = Color(0xFF282D27)
-                )) {
+                Surface(Modifier.fillMaxSize()) {
                     OylApp()
                 }
             }
@@ -69,7 +67,7 @@ fun OylApp() {
         Surface(Modifier.fillMaxSize()) {
             Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
                 verticalArrangement = Arrangement.Center) {
-                Text(auth.sessionError.orEmpty())
+                Text(storeMessage(auth.sessionError.orEmpty()))
                 Button(onClick = auth::restoreSession) { Text("Reintentar") }
             }
         }

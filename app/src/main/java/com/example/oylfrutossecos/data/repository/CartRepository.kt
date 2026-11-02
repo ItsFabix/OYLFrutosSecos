@@ -1,7 +1,6 @@
 package com.example.oylfrutossecos.data.repository
 
 import com.example.oylfrutossecos.data.local.OylDatabase
-import com.example.oylfrutossecos.data.local.RemoteCheckoutCache
 import com.example.oylfrutossecos.data.local.PendingCheckout
 import com.example.oylfrutossecos.data.model.CartItem
 import kotlinx.coroutines.Dispatchers
@@ -14,7 +13,7 @@ class CartRepository(private val database: OylDatabase) {
         val db = database.readableDatabase
         db.beginTransaction()
         try {
-            val result = Snapshot(database.readCart(userId), RemoteCheckoutCache(database).pending(userId))
+            val result = Snapshot(database.readCart(userId), database.readPendingCheckout(userId))
             db.setTransactionSuccessful()
             result
         } finally { db.endTransaction() }

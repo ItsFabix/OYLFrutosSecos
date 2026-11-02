@@ -5,12 +5,18 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.Alignment
+import com.example.oylfrutossecos.ui.components.*
+import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.oylfrutossecos.data.repository.DemoPickupPoints
@@ -26,12 +32,16 @@ import org.osmdroid.views.overlay.Marker
  * OpenStreetMap se obtiene por Internet; los mosaicos se almacenan en caché por la librería.
  */
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 fun PickupMapScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val points = DemoPickupPoints.all
+    var query by remember { mutableStateOf("") }
+    val visiblePoints = points.filter { it.title.contains(query, true) || it.reference.contains(query, true) }
     var selectedId by remember { mutableStateOf(points.first().id) }
     var externalError by remember { mutableStateOf<String?>(null) }
     val point = points.first { it.id == selectedId }
+    val keyboardVisible = WindowInsets.isImeVisible
 
     // Conserva MapView entre recomposiciones y configura osmdroid antes de crearla.
     val mapView = remember(context) {
@@ -73,19 +83,20 @@ fun PickupMapScreen(onBack: () -> Unit) {
         }
     }
 
-    LaunchedEffect(selectedId, mapView) {
+    LaunchedEffect(selectedId, mapView, query) {
         val focus = GeoPoint(point.latitude, point.longitude)
         mapView.controller.setZoom(16.0)
         mapView.controller.setCenter(focus)
         mapView.overlays.clear()
-        mapView.overlays.add(
-            Marker(mapView).apply {
-                position = focus
-                title = point.title
-                snippet = point.reference
+        visiblePoints.forEach { item ->
+            mapView.overlays.add(Marker(mapView).apply {
+                position = GeoPoint(item.latitude, item.longitude)
+                title = item.title
+                snippet = item.reference
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-            }
-        )
+                setOnMarkerClickListener { _, _ -> selectedId = item.id; true }
+            })
+        }
         mapView.invalidate()
     }
 
@@ -100,72 +111,41 @@ fun PickupMapScreen(onBack: () -> Unit) {
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        TextButton(onClick = onBack) { Text("← Volver") }
-        Text("Mapa y puntos de retiro", style = MaterialTheme.typography.headlineMedium)
-        Text(
-            "Ubicaciones y horarios referenciales.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error
-        )
-        Text("Seleccionar punto", style = MaterialTheme.typography.titleMedium)
-        points.forEach { item ->
-            FilterChip(
-                selected = item.id == selectedId,
-                onClick = {
-                    selectedId = item.id
-                    externalError = null
-                },
-                label = { Text(item.title) },
-                modifier = Modifier.fillMaxWidth()
-            )
+    Box(Modifier.fillMaxSize().imePadding().clipToBounds().testTag("map-screen")) {
+        AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
+        Column(Modifier.align(Alignment.TopCenter).fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLowest).padding(horizontal = 10.dp)) {
+            ReferenceTitle("Puntos de retiro", onBack)
+            OutlinedTextField(query, { input ->
+                query = input
+                points.firstOrNull { it.title.contains(input, true) || it.reference.contains(input, true) }?.let { selectedId = it.id }
+            }, label = { Text("Buscar puntos de retiro") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                visiblePoints.forEach { item ->
+                    OylFilterChip(selected = item.id == selectedId, onClick = { selectedId = item.id; externalError = null },
+                        label = { Text(item.title.removeSuffix(" (demo)"), style = MaterialTheme.typography.labelSmall) })
+                }
+            }
+            if (visiblePoints.isEmpty()) Text("Sin puntos coincidentes", style = MaterialTheme.typography.bodySmall)
         }
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(point.title, style = MaterialTheme.typography.titleMedium)
-                Text(point.reference)
-                Text(point.schedule, style = MaterialTheme.typography.bodySmall)
+        if (!keyboardVisible) Surface(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(10.dp),
+            shape = MaterialTheme.shapes.medium, shadowElevation = 3.dp, color = MaterialTheme.colorScheme.surfaceContainerLowest) {
+            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(point.title.removeSuffix(" (demo)"), style = MaterialTheme.typography.titleSmall)
+                Text(point.reference, style = MaterialTheme.typography.bodySmall)
+                Text(point.schedule.replace("Horario ficticio:", "Horario referencial:"),
+                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { openExternal(DemoPickupPoints.directionsUrl(point)) }, modifier = Modifier.weight(1f)) { Text("Cómo llegar") }
+                    OutlinedButton(onClick = {
+                        mapView.controller.setZoom(16.0)
+                        mapView.controller.animateTo(GeoPoint(point.latitude, point.longitude))
+                    }, modifier = Modifier.weight(1f)) { Text("Centrar mapa") }
+                }
+                TextButton(onClick = { openExternal(DemoPickupPoints.browserMapUrl(point)) }) { Text("Abrir mapa en el navegador") }
+                externalError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                Text("Puntos y horarios referenciales. © OpenStreetMap contributors. Requiere Internet.",
+                    style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        Text("Mapa interactivo (requiere Internet)", style = MaterialTheme.typography.titleMedium)
-        AndroidView(
-            factory = { mapView },
-            modifier = Modifier.fillMaxWidth().height(310.dp)
-        )
-        Text(
-            "Arrastra para mover el mapa, pellizca para acercar y toca el marcador. © OpenStreetMap contributors.",
-            style = MaterialTheme.typography.bodySmall
-        )
-        Text(
-            "Si el servidor no muestra calles, utiliza «Abrir mapa en el navegador». La disponibilidad de mapas depende de OpenStreetMap.",
-            style = MaterialTheme.typography.bodySmall
-        )
-        OutlinedButton(
-            onClick = {
-                mapView.controller.setZoom(16.0)
-                mapView.controller.animateTo(GeoPoint(point.latitude, point.longitude))
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Centrar mapa en el punto")
-        }
-        Button(
-            onClick = { openExternal(DemoPickupPoints.directionsUrl(point)) },
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Como llegar (Google Maps)") }
-        OutlinedButton(
-            onClick = { openExternal(DemoPickupPoints.browserMapUrl(point)) },
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Abrir mapa en el navegador") }
-        if (externalError != null) {
-            Text(externalError.orEmpty(), color = MaterialTheme.colorScheme.error)
-        }
-        Text(
-            "Los puntos mostrados no corresponden a sucursales confirmadas ni permiten coordinar retiros.",
-            style = MaterialTheme.typography.bodySmall
-        )
     }
 }

@@ -26,20 +26,17 @@ fun LoginScreen(
     onRegisterClick: () -> Unit,
     onBackClick: () -> Unit
 ) {
-    AuthLayout("Iniciar sesión", "Ingresa con tu alias y contraseña.") {
-        Text("Tipo de usuario", style = MaterialTheme.typography.titleSmall)
-        Column(Modifier.fillMaxWidth().selectableGroup()) {
+    AuthLayout("Iniciar sesión", "Ingresa con tu alias y contraseña.", branded = true) {
+        OylBrand(Modifier.height(145.dp), compact = true, decorated = false)
+        Text("Tipo de usuario", style = MaterialTheme.typography.labelMedium)
+        Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             UserRole.values().forEach { role ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                Surface(shape = MaterialTheme.shapes.large,
+                    color = if (state.role == role) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLowest,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                         .selectable(selected = state.role == role, enabled = !state.busy,
-                            role = Role.RadioButton, onClick = { onRoleChange(role) })
-                        .padding(horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    RadioButton(selected = state.role == role, onClick = null, enabled = !state.busy)
-                    Spacer(Modifier.width(12.dp))
-                    Text(role.label)
+                            role = Role.RadioButton, onClick = { onRoleChange(role) })) {
+                    Box(contentAlignment = Alignment.Center) { Text(role.label, style = MaterialTheme.typography.labelLarge) }
                 }
             }
         }

@@ -13,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -24,20 +26,25 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 
 @Composable
-fun AuthLayout(title: String, subtitle: String, content: @Composable ColumnScope.() -> Unit) {
-    Surface(modifier = Modifier.fillMaxSize()) {
+fun AuthLayout(title: String, subtitle: String, branded: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+    Surface(modifier = Modifier.fillMaxSize(),
+        color = if (branded) Color(0xFFFFF8EE) else MaterialTheme.colorScheme.background) {
         Box(modifier = Modifier.fillMaxSize().safeDrawingPadding().imePadding(),
             contentAlignment = Alignment.TopCenter) {
+            if (branded) {
+                OylArtwork(Modifier.fillMaxWidth().height(235.dp).align(Alignment.TopCenter))
+                OylArtwork(Modifier.fillMaxWidth().height(64.dp).align(Alignment.BottomCenter).rotate(180f))
+            }
             Column(
                 modifier = Modifier.widthIn(max = 480.dp).fillMaxWidth()
-                    .verticalScroll(rememberScrollState()).padding(24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .verticalScroll(rememberScrollState()).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text("OYL · Frutos Secos", color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.titleMedium)
-                Text(title, style = MaterialTheme.typography.headlineMedium)
-                Text(subtitle, style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(8.dp))
+                if (!branded) {
+                    ReferenceTitle(title)
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
                 content()
             }
         }
@@ -56,7 +63,11 @@ fun AuthField(
         modifier = Modifier.fillMaxWidth().semantics {
             if (error != null) fieldError("$label: $error")
         }, enabled = enabled, singleLine = true,
-        shape = RoundedCornerShape(12.dp), isError = error != null,
+        shape = RoundedCornerShape(8.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest), isError = error != null,
         supportingText = if (error != null) ({ Text(error) }) else null,
         leadingIcon = { Icon(icon, contentDescription = null) },
         trailingIcon = if (password) ({
@@ -83,7 +94,7 @@ fun AuthMessage(message: String?, isError: Boolean = true) {
                 else MaterialTheme.colorScheme.primaryContainer,
             modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite }
         ) {
-            Text(message, modifier = Modifier.padding(14.dp),
+            Text(storeMessage(message), modifier = Modifier.padding(14.dp),
                 color = if (isError) MaterialTheme.colorScheme.onErrorContainer
                     else MaterialTheme.colorScheme.onPrimaryContainer)
         }
@@ -93,8 +104,8 @@ fun AuthMessage(message: String?, isError: Boolean = true) {
 @Composable
 fun AuthButton(label: String, busy: Boolean, onClick: () -> Unit, enabled: Boolean = true) {
     Button(onClick = onClick, enabled = !busy && enabled,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
-        shape = RoundedCornerShape(14.dp)) {
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        shape = RoundedCornerShape(24.dp)) {
         if (busy) {
             CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
             Spacer(Modifier.width(12.dp))

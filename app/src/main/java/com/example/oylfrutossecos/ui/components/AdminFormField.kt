@@ -15,7 +15,12 @@ fun AdminFormField(label: String, value: String, onChange: (String) -> Unit,
     icon: ImageVector, error: String?, help: String, enabled: Boolean,
     keyboardType: KeyboardType = KeyboardType.Text, readOnly: Boolean = false,
     minLines: Int = 1) {
-    OutlinedTextField(value, onChange, modifier = Modifier.fillMaxWidth(),
+    OutlinedTextField(
+        shape = MaterialTheme.shapes.large,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
+        value = value, onValueChange = onChange, modifier = Modifier.fillMaxWidth(),
         label = { Text(label) }, enabled = enabled, readOnly = readOnly,
         isError = error != null, supportingText = { Text(error ?: help) },
         leadingIcon = { Icon(icon, contentDescription = label) },

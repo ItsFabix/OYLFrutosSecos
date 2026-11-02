@@ -6,7 +6,7 @@ import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.activity.result.ActivityResultRegistry
 import androidx.activity.result.ActivityResultRegistryOwner
 import androidx.activity.result.contract.ActivityResultContract
-import androidx.compose.material3.MaterialTheme
+import com.example.oylfrutossecos.ui.theme.OYLFrutosSecosTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
@@ -33,7 +33,7 @@ class AdminFormsUiTest {
 
     @Test fun productErrorsAppearAtFieldsAndEditingNameKeepsPriceError() {
         val vm = ProductFormViewModel(null, true, SavedStateHandle()) { _, _ -> fail("Invalid product saved") }
-        compose.setContent { MaterialTheme { EditProductScreen(null, vm, {}) } }
+        compose.setContent { OYLFrutosSecosTheme { EditProductScreen(null, vm, {}) } }
         compose.onNodeWithText("Guardar producto").performScrollTo().performClick()
         compose.onNode(hasSetTextAction() and hasText("Nombre")).assert(hasError)
             .performScrollTo().performTextInput("Almendras")
@@ -49,7 +49,7 @@ class AdminFormsUiTest {
     @Test fun validProductSaveDisablesButtonAndOnlyRunsOnce() {
         var calls = 0
         val vm = ProductFormViewModel(product, false, SavedStateHandle()) { _, _ -> calls++ }
-        compose.setContent { MaterialTheme { EditProductScreen(product, vm, {}) } }
+        compose.setContent { OYLFrutosSecosTheme { EditProductScreen(product, vm, {}) } }
         compose.onNodeWithText("Guardar producto").performScrollTo().performClick()
         compose.onNodeWithText("Guardando…").assertIsNotEnabled()
         compose.runOnIdle { vm.save(); assertEquals(1, calls) }
@@ -63,7 +63,7 @@ class AdminFormsUiTest {
             assertEquals(2, amount)
             assertEquals("Reposición", note)
         }
-        compose.setContent { MaterialTheme { StockAdjustmentScreen(product, vm, {}) } }
+        compose.setContent { OYLFrutosSecosTheme { StockAdjustmentScreen(product, vm, {}) } }
         compose.onNodeWithText("Guardar movimiento").performScrollTo().performClick()
         compose.onNodeWithText("Selecciona Entrada o Salida.").performScrollTo().assertIsDisplayed()
         compose.onNode(hasSetTextAction() and hasText("Cantidad de bolsas")).assert(hasError)
@@ -78,7 +78,7 @@ class AdminFormsUiTest {
 
     @Test fun inventoryShowsInsufficientStockBesideQuantityAndPreservesValidNote() {
         val vm = StockAdjustmentViewModel(5, SavedStateHandle()) { _, _, _, _ -> fail("Insufficient stock saved") }
-        compose.setContent { MaterialTheme { StockAdjustmentScreen(product, vm, {}) } }
+        compose.setContent { OYLFrutosSecosTheme { StockAdjustmentScreen(product, vm, {}) } }
         compose.onNodeWithText("Salida").performScrollTo().performClick()
         compose.onNode(hasSetTextAction() and hasText("Cantidad de bolsas")).performScrollTo().performTextInput("6")
         compose.onNode(hasSetTextAction() and hasText("Motivo")).performScrollTo().performTextInput("Merma")
@@ -111,7 +111,7 @@ class AdminFormsUiTest {
         val owner = object : ActivityResultRegistryOwner { override val activityResultRegistry = registry }
         compose.setContent {
             CompositionLocalProvider(LocalActivityResultRegistryOwner provides owner) {
-                MaterialTheme { EditProductScreen(photographed, vm, {}) }
+                OYLFrutosSecosTheme { EditProductScreen(photographed, vm, {}) }
             }
         }
         compose.onNodeWithText("Tomar fotografía").performScrollTo().performClick()

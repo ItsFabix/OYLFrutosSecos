@@ -1,7 +1,7 @@
 package com.example.oylfrutossecos
 
 import androidx.activity.ComponentActivity
-import androidx.compose.material3.MaterialTheme
+import com.example.oylfrutossecos.ui.theme.OYLFrutosSecosTheme
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.example.oylfrutossecos.data.local.PendingCheckout
@@ -25,7 +25,7 @@ class HomeScreenTest {
                        inventory: InventoryState = InventoryState(products = products, loading = false),
                        orders: OrderUiState = OrderUiState(loading = false), enabled: Boolean = true) {
         compose.setContent {
-            MaterialTheme {
+            OYLFrutosSecosTheme {
                 HomeScreen(client.copy(role = if (admin) UserRole.ADMIN else UserRole.CLIENT),
                     CatalogState(products = products, loading = false), cart, orders, inventory,
                     onCatalog = { selected = "catalog" }, onProduct = { selected = "product/$it" },
@@ -38,25 +38,27 @@ class HomeScreenTest {
     }
 
     private fun click(label: String, destination: String) {
-        compose.onNodeWithText(label).performScrollTo().performClick()
+        compose.onNodeWithTag("home-list").performScrollToNode(hasText(label))
+        compose.onNodeWithText(label).performClick()
         compose.runOnIdle { assertEquals(destination, selected) }
     }
 
     @Test fun clientShowsExistingCartAndAllShortcuts() {
         render(cart = CartState(listOf(CartItem(products[1], 2)), loading = false))
         compose.onNodeWithText("Hola, Cliente Demo").assertIsDisplayed()
-        compose.onNodeWithText("2 bolsas · Total: CLP 3000").assertIsDisplayed()
+        compose.onNodeWithText("2 bolsas · Total: ${com.example.oylfrutossecos.ui.components.priceInPesos(3000)}").assertIsDisplayed()
         click("Ver carrito", "cart")
         click("Mis pedidos", "orders")
         click("Explorar catálogo", "catalog")
         click("Notificaciones (2 nuevas)", "notifications")
         click("Puntos de retiro", "map")
-        compose.onNodeWithText("Administrar productos").assertDoesNotExist()
+        compose.onNodeWithText("Gestionar productos").assertDoesNotExist()
     }
 
     @Test fun featuredProductsUseAvailabilityAndOpenTheExistingProduct() {
         render()
-        compose.onNodeWithText("Producto 2").performScrollTo().performClick()
+        compose.onNodeWithTag("home-list").performScrollToNode(hasText("Producto 2"))
+        compose.onNodeWithText("Producto 2").performClick()
         compose.runOnIdle { assertEquals("product/2", selected) }
         compose.onNodeWithText("Producto 1").assertDoesNotExist()
     }
@@ -64,7 +66,8 @@ class HomeScreenTest {
     @Test fun pendingCheckoutRemainsVisibleEvenWithAnEmptyCart() {
         render(cart = CartState(loading = false,
             pending = PendingCheckout("existing-id", "{}", DeliveryMethod.PICKUP, "1:2")))
-        compose.onNodeWithText("Tienes una compra pendiente de recuperación. Ábrela desde el carrito.")
+        compose.onNodeWithTag("home-list").performScrollToNode(hasText("Hay un pedido anterior por revisar. Abre el carrito para conocer su estado."))
+        compose.onNodeWithText("Hay un pedido anterior por revisar. Abre el carrito para conocer su estado.")
             .assertIsDisplayed()
         click("Ver carrito", "cart")
     }
@@ -74,12 +77,12 @@ class HomeScreenTest {
             DeliveryMethod.PICKUP, client.phone, client.address, 1500, emptyList())
         render(admin = true, orders = OrderUiState(orders = listOf(order, order.copy(id = 2,
             status = OrderStatus.DELIVERED)), loading = false))
-        compose.onNodeWithText("Resumen de inventario").assertExists()
+        compose.onNodeWithText("Resumen general").assertExists()
         compose.onNode(hasText("Productos") and hasText("4")).assertExists()
         compose.onNode(hasText("Agotados") and hasText("1")).assertExists()
         compose.onNode(hasText("Stock bajo (1–5)") and hasText("2")).assertExists()
         compose.onNode(hasText("Pedidos pendientes") and hasText("1")).assertExists()
-        click("Administrar productos", "manage")
+        click("Gestionar productos", "manage")
         click("Inventario", "inventory")
         click("Pedidos", "orders")
         compose.onNodeWithText("Ver carrito").assertDoesNotExist()
@@ -96,7 +99,9 @@ class HomeScreenTest {
     @Test fun navigationLockAlsoDisablesDashboardShortcuts() {
         render(enabled = false)
         compose.onNodeWithText("Ver carrito").assertIsNotEnabled()
-        compose.onNodeWithText("Mis pedidos").performScrollTo().assertIsNotEnabled()
-        compose.onNodeWithText("Explorar catálogo").performScrollTo().assertIsNotEnabled()
+        compose.onNodeWithTag("home-list").performScrollToNode(hasText("Mis pedidos"))
+        compose.onNodeWithText("Mis pedidos").assertIsNotEnabled()
+        compose.onNodeWithTag("home-list").performScrollToNode(hasText("Explorar catálogo"))
+        compose.onNodeWithText("Explorar catálogo").assertIsNotEnabled()
     }
 }

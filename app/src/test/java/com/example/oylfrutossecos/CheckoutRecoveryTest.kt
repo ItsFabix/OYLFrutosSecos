@@ -98,7 +98,7 @@ class CheckoutRecoveryTest {
         val persisted = store.attempt!!
         store.cart = store.cart.map { it.copy(product = it.product.copy(stock = 0, priceClp = 9000)) }
         val state = CartState(items = store.cart, loading = false, pending = persisted)
-        assertTrue(state.canCheckout)
+        assertFalse(state.canCheckout)
         assertFalse(state.canEdit)
         // New coordinator has no in-memory UUID. Current UI delivery and even an empty list
         // must not replace the durable payload of the pending attempt.
@@ -141,7 +141,7 @@ class CheckoutRecoveryTest {
             fail("Expected HTTP failure")
         } catch (_: IllegalStateException) { }
         assertEquals(saved, store.attempt)
-        assertTrue(CartState(store.cart, loading = false, pending = store.attempt).canCheckout)
+        assertFalse(CartState(store.cart, loading = false, pending = store.attempt).canCheckout)
     }
 
     @Test fun definitiveStockRejectionUnlocksCartWithoutChangingItsItems() = runBlocking {
@@ -168,12 +168,12 @@ class CheckoutRecoveryTest {
         assertNull(CheckoutLines.normalizeStored("1:1:3490;1:2:3490"))
     }
 
-    @Test fun normalCartWithInsufficientStockCannotCheckoutButPendingOneCan() {
+    @Test fun localCheckoutBlocksInsufficientStockAndProtectsLegacyPendingRequests() {
         val items = listOf(CartItem(product.copy(stock = 0), 1))
         assertFalse(CartState(items, loading = false).canCheckout)
         val attempt = PendingCheckout("saved", "{}", DeliveryMethod.PICKUP, "1:1")
-        assertTrue(CartState(items, loading = false, pending = attempt).canCheckout)
-        assertTrue(CartState(loading = false, pending = attempt).canCheckout)
+        assertFalse(CartState(items, loading = false, pending = attempt).canCheckout)
+        assertFalse(CartState(loading = false, pending = attempt).canCheckout)
         assertFalse(CartState(items, loading = true, pending = attempt).canCheckout)
     }
 

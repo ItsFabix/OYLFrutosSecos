@@ -41,10 +41,8 @@ fun EditProductScreen(product: Product?, form: ProductFormViewModel, onBack: () 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         TextButton(onClick = onBack, enabled = enabled) { Text("Volver") }
-        Text(if (state.isNew) "Nuevo producto" else "Editar producto",
-            style = MaterialTheme.typography.headlineMedium)
-        Text("Los cambios se guardan en este dispositivo y no se envían al servidor.",
-            style = MaterialTheme.typography.bodySmall)
+        StoreHeader(if (state.isNew) "Nuevo producto" else "Editar producto",
+            "Información y fotografías del catálogo")
         state.imageKey?.let { key ->
             val preview = product?.copy(imageKey = key)
                 ?: Product(0, input.name, input.category, input.description, 1, 1, 0, key)
@@ -69,7 +67,10 @@ fun EditProductScreen(product: Product?, form: ProductFormViewModel, onBack: () 
             onExpandedChange = { if (enabled) categoryExpanded = it }) {
             OutlinedTextField(value = input.category, onValueChange = {}, readOnly = true,
                 enabled = enabled, modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled),
-                label = { Text("Categoría") },
+                label = { Text("Categoría") }, shape = MaterialTheme.shapes.large,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLowest),
                 leadingIcon = { Icon(Icons.Default.Category, contentDescription = "Categoría del producto") },
                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(categoryExpanded) },
                 isError = state.errors[ProductField.CATEGORY] != null,
@@ -100,7 +101,7 @@ fun EditProductScreen(product: Product?, form: ProductFormViewModel, onBack: () 
             else "Para cambiar existencias usa Productos → Inventario.",
             enabled, KeyboardType.Number, readOnly = !state.isNew)
         state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = form::save, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+        Button(onClick = form::save, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp)) {
             if (state.saving) {
                 CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))

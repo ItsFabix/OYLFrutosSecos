@@ -23,8 +23,8 @@ data class CartState(
     val total: Long get() = items.sumOf { it.subtotalClp }
     val count: Int get() = items.sumOf { it.quantity }
     val canEdit: Boolean get() = !loading && !busy && pending == null
-    val canCheckout: Boolean get() = !loading && !busy &&
-        (pending != null || (items.isNotEmpty() && items.none { it.quantity > it.product.stock }))
+    val canCheckout: Boolean get() = !loading && !busy && pending == null &&
+        items.isNotEmpty() && items.none { it.quantity > it.product.stock }
 }
 
 class CartViewModel(private val repository: CartRepository, private val userId: Long) : ViewModel() {

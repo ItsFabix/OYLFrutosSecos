@@ -15,7 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.oylfrutossecos.data.model.MovementType
 import com.example.oylfrutossecos.data.model.Product
 import com.example.oylfrutossecos.domain.InventoryField
-import com.example.oylfrutossecos.ui.components.AdminFormField
+import com.example.oylfrutossecos.ui.components.*
 import com.example.oylfrutossecos.ui.viewmodel.StockAdjustmentViewModel
 
 @Composable
@@ -28,10 +28,9 @@ fun StockAdjustmentScreen(product: Product, form: StockAdjustmentViewModel,
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)) {
         TextButton(onClick = onBack, enabled = !state.locked) { Text("← Volver al inventario") }
-        Text("Registrar movimiento", style = MaterialTheme.typography.headlineMedium)
-        Text(product.name, style = MaterialTheme.typography.titleLarge)
-        Text("Existencia actual: ${state.currentStock} bolsas", color = MaterialTheme.colorScheme.primary)
-        Text("El movimiento se guardará en este dispositivo y no actualizará el inventario del servidor.",
+        StoreHeader("Registrar movimiento", product.name)
+        StockBadge(state.currentStock)
+        Text("Las entradas y salidas actualizan las existencias y quedan en el historial.",
             style = MaterialTheme.typography.bodySmall)
         Text("Tipo de movimiento", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -43,7 +42,7 @@ fun StockAdjustmentScreen(product: Product, form: StockAdjustmentViewModel,
                     label = { Text(option.label) })
             }
         }
-        Text(state.errors[InventoryField.TYPE] ?: "Entrada suma bolsas; Salida retira bolsas del stock local.",
+        Text(state.errors[InventoryField.TYPE] ?: "Entrada suma bolsas; Salida retira bolsas del stock.",
             color = if (state.errors[InventoryField.TYPE] != null) MaterialTheme.colorScheme.error
             else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         AdminFormField("Cantidad de bolsas", input.quantity, { form.change(InventoryField.QUANTITY, it) },
@@ -54,13 +53,13 @@ fun StockAdjustmentScreen(product: Product, form: StockAdjustmentViewModel,
             "De 3 a 120 caracteres. Ejemplos: reposición o merma.", !state.locked, minLines = 2)
         state.projectedStock?.let { Text("Nuevo stock estimado: $it bolsas",
             color = MaterialTheme.colorScheme.primary) }
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(onClick = form::save, enabled = !state.locked, modifier = Modifier.fillMaxWidth()) {
+        state.error?.let { Text(storeMessage(it), color = MaterialTheme.colorScheme.error) }
+        Button(onClick = form::save, enabled = !state.locked, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp)) {
             if (state.saving) {
                 CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
             } else {
-                Icon(Icons.Default.Save, contentDescription = "Guardar movimiento de inventario local")
+                Icon(Icons.Default.Save, contentDescription = "Guardar movimiento de inventario")
                 Spacer(Modifier.width(8.dp))
             }
             Text(if (state.saving) "Guardando…" else "Guardar movimiento")

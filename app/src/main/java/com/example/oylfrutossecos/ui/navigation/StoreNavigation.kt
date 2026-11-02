@@ -6,7 +6,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,8 +19,6 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import com.example.oylfrutossecos.ui.notifications.DemoLocalNotifier
-import com.example.oylfrutossecos.data.remote.OylRestClient
-import com.example.oylfrutossecos.ui.viewmodel.RemoteCatalogViewModel
 import com.example.oylfrutossecos.data.repository.NotificationRepository
 import com.example.oylfrutossecos.ui.viewmodel.NotificationViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,9 +47,9 @@ import com.example.oylfrutossecos.ui.viewmodel.StockAdjustmentViewModel
 fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> Unit) {
     val context = LocalContext.current.applicationContext
     val database = remember(context) { OylDatabase.getInstance(context) }
-    val catalogFactory = remember(database) { CatalogViewModel.Factory(ProductRepository(database, OylRestClient.service)) }
+    val catalogFactory = remember(database) { CatalogViewModel.Factory(ProductRepository(database)) }
     val cartFactory = remember(database, user.id) { CartViewModel.Factory(CartRepository(database), user.id) }
-    val orderFactory = remember(database, user.id) { OrderViewModel.Factory(OrderRepository(database, OylRestClient.service), user) }
+    val orderFactory = remember(database, user.id) { OrderViewModel.Factory(OrderRepository(database), user) }
     val notificationFactory = remember(database, user.id) {
         NotificationViewModel.Factory(NotificationRepository(database), user.id)
     }
@@ -93,30 +92,40 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
         nav.navigate("product/$id") { launchSingleTop = true }
     }
 
+    val tabColors = NavigationBarItemDefaults.colors(
+        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+        selectedTextColor = MaterialTheme.colorScheme.primary,
+        indicatorColor = MaterialTheme.colorScheme.primary,
+        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+    )
     Scaffold(bottomBar = {
-        NavigationBar {
-            NavigationBarItem(selected = current == "store_home", enabled = navigationEnabled,
-                onClick = { openTab("store_home") }, icon = { Icon(Icons.Default.Home, null) },
-                label = { Text("Inicio") })
-            NavigationBarItem(selected = current == "catalog" || current == "product/{id}", enabled = navigationEnabled,
-                onClick = { openTab("catalog") }, icon = { Icon(Icons.Default.ShoppingBag, null) },
-                label = { Text("Catálogo") })
-            NavigationBarItem(selected = current == "qr_scanner", enabled = navigationEnabled,
-                onClick = { openTab("qr_scanner") }, icon = { Icon(Icons.Default.Search, null) },
-                label = { Text("QR") })
-            if (admin) {
-                NavigationBarItem(selected = current == "manage" || current == "editor/{id}" ||
-                    current == "inventory" || current == "inventory_adjust/{id}",
-                    enabled = navigationEnabled, onClick = { openTab("manage") },
-                    icon = { Icon(Icons.Default.Inventory2, null) }, label = { Text("Productos") })
-            } else {
-                NavigationBarItem(selected = current == "cart", enabled = navigationEnabled,
-                    onClick = { cart.reload(); openTab("cart") },
-                    icon = { Icon(Icons.Default.ShoppingCart, null) }, label = { Text("Carrito") })
+        Surface(shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp), shadowElevation = 2.dp) {
+            NavigationBar(modifier = Modifier.height(64.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()), containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+                tonalElevation = 0.dp) {
+                NavigationBarItem(colors = tabColors, selected = current == "store_home", enabled = navigationEnabled,
+                    onClick = { openTab("store_home") }, icon = { Icon(Icons.Default.Home, null) },
+                    label = { Text("Inicio") })
+                NavigationBarItem(colors = tabColors, selected = current == "catalog" || current == "product/{id}", enabled = navigationEnabled,
+                    onClick = { openTab("catalog") }, icon = { Icon(Icons.Default.ShoppingBag, null) },
+                    label = { Text("Catálogo") })
+                NavigationBarItem(colors = tabColors, selected = current == "qr_scanner", enabled = navigationEnabled,
+                    onClick = { openTab("qr_scanner") }, icon = { Icon(Icons.Default.QrCodeScanner, null) },
+                    label = { Text("QR") })
+                if (admin) {
+                    NavigationBarItem(colors = tabColors, selected = current == "manage" || current == "editor/{id}" ||
+                        current == "inventory" || current == "inventory_adjust/{id}",
+                        enabled = navigationEnabled, onClick = { openTab("manage") },
+                        icon = { Icon(Icons.Default.Inventory2, null) }, label = { Text("Gestión", maxLines = 1) })
+                } else {
+                    NavigationBarItem(colors = tabColors, selected = current == "cart", enabled = navigationEnabled,
+                        onClick = { cart.reload(); openTab("cart") },
+                        icon = { Icon(Icons.Default.ShoppingCart, null) }, label = { Text("Carrito") })
+                }
+                NavigationBarItem(colors = tabColors, selected = current == "profile" || current == "orders", enabled = navigationEnabled,
+                    onClick = { openTab("profile") }, icon = { Icon(Icons.Default.Person, null) },
+                    label = { Text("Cuenta") })
             }
-            NavigationBarItem(selected = current == "profile" || current == "orders", enabled = navigationEnabled,
-                onClick = { openTab("profile") }, icon = { Icon(Icons.Default.Person, null) },
-                label = { Text("Cuenta") })
         }
     }) { padding ->
         NavHost(navController = nav, startDestination = "store_home",
@@ -172,21 +181,6 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         else permissionGranted = true
                     })
-            }
-            composable("rest_api") {
-                val remote: RemoteCatalogViewModel = viewModel(
-                    key = "oyl-remote-api",
-                    factory = RemoteCatalogViewModel.Factory(OylRestClient.service, context)
-                )
-                val remoteState by remote.state.collectAsStateWithLifecycle()
-                RemoteCatalogScreen(
-                    state = remoteState,
-                    isAdmin = admin,
-                    onBack = { nav.popBackStack() },
-                    onRefresh = remote::load,
-                    onCreateDemoOrder = remote::createDemoOrder,
-                    onNewDemoOrder = remote::prepareAnotherDemoOrder
-                )
             }
             composable("catalog") {
                 CatalogScreen(state, catalog::search, catalog::selectCategory,
@@ -277,7 +271,7 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                     LaunchedEffect(Unit) { cart.reload() }
                     CartScreen(cartState, { id, quantity -> cart.change(id, quantity) },
                         cart::reload, { openTab("catalog") },
-                        { cart.reload(); nav.navigate("order_confirmation") })
+                        { cart.reload(); nav.navigate("order_confirmation") { launchSingleTop = true } })
                 }
             }
             if (!admin) {
@@ -302,12 +296,13 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                 }
                 composable("order_success") {
                     OrderSuccessScreen(orderState.placedId,
-                        serverOrderId = orderState.placedServerId,
+                        order = orderState.orders.firstOrNull { it.id == orderState.placedId },
                         onOrders = { orders.load(); openTab("orders") },
                         onHome = { openTab("store_home") })
                 }
             }
             composable("orders") {
+                LaunchedEffect(user.id) { orders.load() }
                 OrdersScreen(orderState, admin,
                     onBack = { nav.popBackStack() },
                     onRetry = orders::load, onAdvance = orders::advance)
@@ -319,8 +314,7 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                     onNotificationsClick = {
                         notices.load()
                         nav.navigate("notifications") { launchSingleTop = true }
-                    }, unreadNotices = noticeState.unreadCount,
-                    onRestClick = { nav.navigate("rest_api") { launchSingleTop = true } })
+                    }, unreadNotices = noticeState.unreadCount)
             }
         }
     }

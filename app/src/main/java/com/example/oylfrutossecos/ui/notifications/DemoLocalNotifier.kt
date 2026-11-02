@@ -11,6 +11,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import com.example.oylfrutossecos.MainActivity
 import com.example.oylfrutossecos.data.model.AppNotice
+import com.example.oylfrutossecos.ui.components.noticeTitle
+import com.example.oylfrutossecos.ui.components.noticeMessage
 
 /** Demostración de aviso LOCAL. Las push remotas requieren un servicio y backend. */
 object DemoLocalNotifier {
@@ -25,8 +27,8 @@ object DemoLocalNotifier {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(NotificationChannel(
-                CHANNEL, "Avisos de OYL (demo)", NotificationManager.IMPORTANCE_DEFAULT
-            ).apply { description = "Avisos locales de la demostración académica" })
+                CHANNEL, "Avisos de OYL", NotificationManager.IMPORTANCE_DEFAULT
+            ).apply { description = "Avisos de pedidos y productos en este dispositivo" })
         }
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
@@ -39,8 +41,8 @@ object DemoLocalNotifier {
             Notification.Builder(context, CHANNEL) else Notification.Builder(context)
         val notification = builder
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(notice.title)
-            .setContentText(notice.message)
+            .setContentTitle(noticeTitle(notice))
+            .setContentText(noticeMessage(notice))
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()

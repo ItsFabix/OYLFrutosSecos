@@ -4,7 +4,7 @@ import android.os.Bundle
 import android.os.Parcel
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.MaterialTheme
+import com.example.oylfrutossecos.ui.theme.OYLFrutosSecosTheme
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
@@ -44,7 +44,7 @@ class AuthFormsUiTest {
             activity.setContent {
                 val vm: AuthViewModel = viewModel(factory = factory)
                 SideEffect { auth = vm }
-                MaterialTheme {
+                OYLFrutosSecosTheme {
                     if (registration) RegisterScreen(vm.registerState, vm::changeRegistration, vm::register, {})
                     else LoginScreen(vm.loginState, { vm.changeLogin(alias = it) },
                         { vm.changeLogin(password = it) }, { vm.changeLogin(role = it) }, vm::login, {}, {})

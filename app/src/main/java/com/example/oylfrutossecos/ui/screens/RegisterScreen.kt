@@ -1,6 +1,10 @@
 package com.example.oylfrutossecos.ui.screens
 
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.OutlinedButton
@@ -22,6 +26,11 @@ fun RegisterScreen(
     val form = state.form
     val enabled = !state.busy && !state.completed
     AuthLayout("Crear cuenta", "Completa tus datos para crear tu cuenta.") {
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer) {
+                Icon(Icons.Default.Person, null, Modifier.padding(14.dp).size(36.dp), tint = MaterialTheme.colorScheme.primary)
+            }
+        }
         AuthField("Nombre", form.name, { onFormChange(form.copy(name = it)) },
             Icons.Default.Person, state.errors["name"], enabled)
         AuthField("Alias", form.alias, { onFormChange(form.copy(alias = it)) },

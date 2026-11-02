@@ -1,31 +1,24 @@
 package com.example.oylfrutossecos.data.repository
 
 import com.example.oylfrutossecos.data.local.OylDatabase
-import com.example.oylfrutossecos.data.local.RemoteCheckoutCache
 import com.example.oylfrutossecos.data.model.*
-import com.example.oylfrutossecos.data.remote.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 data class PlacedRemoteOrder(val localId: Long, val serverId: String)
 
-/** Spring Boot es la fuente de pedidos y stock; SQLite conserva el historial local. */
-class OrderRepository(
-    private val database: OylDatabase,
-    private val api: OylRestService
-) {
-    private val checkout = CheckoutCoordinator(RemoteCheckoutCache(database), api)
-
+/** Pedidos de SQLite; los registros remotos históricos se conservan como consulta. */
+class OrderRepository(private val database: OylDatabase) {
     suspend fun placeOrder(user: User, delivery: DeliveryMethod,
-                           expectedItems: List<CartItem>): PlacedRemoteOrder =
-        withContext(Dispatchers.IO) { checkout.placeOrder(user, delivery, expectedItems) }
+                           expectedItems: List<CartItem>): Long =
+        withContext(Dispatchers.IO) { database.placeDemoOrder(user, delivery, expectedItems) }
 
     suspend fun getOrders(user: User): List<OrderSummary> = withContext(Dispatchers.IO) {
         database.readOrders(if (user.role == UserRole.ADMIN) null else user.id)
     }
 
-    suspend fun advanceStatus(orderId: Long): Unit = withContext(Dispatchers.IO) {
-        // Solo aplicable a solicitudes históricas locales. El servidor gestiona las nuevas.
+    suspend fun advanceStatus(user: User, orderId: Long): Unit = withContext(Dispatchers.IO) {
+        require(user.role == UserRole.ADMIN) { "Solo el administrador puede cambiar estados." }
         database.advanceDemoOrder(orderId)
     }
 }

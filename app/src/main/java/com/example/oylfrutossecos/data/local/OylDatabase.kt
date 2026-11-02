@@ -163,6 +163,15 @@ class OylDatabase private constructor(context: Context) :
         return items
     }
 
+    /** Solo consulta SQLite: nunca reenvía ni transforma una solicitud remota anterior. */
+    fun readPendingCheckout(userId: Long): PendingCheckout? = readableDatabase.query(
+        "pending_remote_checkout", arrayOf("request_id", "request_json", "delivery", "cart_fingerprint"),
+        "user_id = ?", arrayOf(userId.toString()), null, null, null
+    ).use { cursor ->
+        if (!cursor.moveToFirst()) null else PendingCheckout(cursor.getString(0), cursor.getString(1),
+            DeliveryMethod.valueOf(cursor.getString(2)), cursor.getString(3))
+    }
+
     fun setCartQuantity(userId: Long, productId: Long, quantity: Int) {
         val db = writableDatabase
         db.beginTransaction()
@@ -172,7 +181,7 @@ class OylDatabase private constructor(context: Context) :
                 arrayOf(userId.toString())
             ).use { it.moveToFirst() }
             check(!pendingOrder) {
-                "Tienes un pedido remoto pendiente. Vuelve a Confirmar pedido y reintenta antes de modificar el carrito."
+                "Hay una solicitud remota anterior conservada. Este carrito requiere revisión antes de crear pedidos locales."
             }
             if (quantity <= 0) {
                 db.delete("cart_items", "user_id = ? AND product_id = ?",
@@ -278,6 +287,9 @@ class OylDatabase private constructor(context: Context) :
         val db = writableDatabase
         db.beginTransaction()
         try {
+            check(readPendingCheckout(user.id) == null) {
+                "Hay una solicitud remota anterior conservada. No se puede convertir en un pedido local."
+            }
             // Consulta en esta misma transacción los precios, cantidades y stock actuales.
             val lines = mutableListOf<OrderLine>()
             db.rawQuery("""
@@ -324,10 +336,10 @@ class OylDatabase private constructor(context: Context) :
             }
             db.delete("cart_items", "user_id = ?", arrayOf(user.id.toString()))
             addNotice(db, user.id, NoticeKind.ORDER_CREATED,
-                "Pedido #$orderId registrado", "Tu solicitud de prueba quedó pendiente de validación.", "orders")
+                "Pedido #$orderId registrado", "Tu pedido está pendiente de confirmación.", "orders")
             forEachAdmin(db) { adminId ->
                 addNotice(db, adminId, NoticeKind.ORDER_CREATED,
-                    "Nuevo pedido #$orderId", "${user.name} registró un pedido de prueba por CLP $total.", "orders")
+                    "Nuevo pedido #$orderId", "${user.name} registró un pedido por CLP $total.", "orders")
             }
             db.setTransactionSuccessful()
             return orderId
@@ -391,7 +403,7 @@ class OylDatabase private constructor(context: Context) :
                 "No se pudo cambiar el estado."
             }
             addNotice(db, clientId, NoticeKind.ORDER_STATUS,
-                "Pedido #$orderId: ${next.displayName}", "El estado de tu pedido de prueba cambió.", "orders")
+                "Pedido #$orderId: ${next.displayName}", "El estado de tu pedido cambió.", "orders")
             db.setTransactionSuccessful()
         } finally { db.endTransaction() }
     }

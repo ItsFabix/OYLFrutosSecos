@@ -3,109 +3,103 @@ package com.example.oylfrutossecos.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import com.example.oylfrutossecos.ui.components.ProductImage
-import com.example.oylfrutossecos.ui.components.priceInPesos
+import com.example.oylfrutossecos.ui.components.*
 import com.example.oylfrutossecos.ui.viewmodel.CartState
 
 @Composable
 fun CartScreen(state: CartState, onChange: (Long, Int) -> Unit,
-    onRetry: () -> Unit, onCatalog: () -> Unit,
-    onCheckout: () -> Unit) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        item {
-            Text("Mi carrito", style = MaterialTheme.typography.headlineMedium)
-            Text("${state.count} bolsas seleccionadas · guardado para tu cuenta")
-        }
-        if (state.loading) {
-            item { CircularProgressIndicator() }
-        }
+    onRetry: () -> Unit, onCatalog: () -> Unit, onCheckout: () -> Unit) {
+    LazyColumn(Modifier.fillMaxSize().testTag("cart-list"), contentPadding = PaddingValues(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        item { ReferenceTitle("Mi carrito (${state.count})") }
+        if (state.loading) item { CircularProgressIndicator() }
         if (!state.loading && state.pending != null) item {
-            Card {
-                Column(Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Hay un pedido pendiente de confirmación", style = MaterialTheme.typography.titleMedium)
-                    Text("Se recuperará la solicitud guardada, aunque el stock actual haya disminuido. " +
-                        "El carrito permanecerá bloqueado hasta conocer el resultado.")
-                    Text("Solicitud: ${state.pending.requestId}", style = MaterialTheme.typography.bodySmall)
-                    Button(onClick = onCheckout, enabled = state.canCheckout,
-                        modifier = Modifier.fillMaxWidth()) { Text("Recuperar pedido pendiente") }
-                }
-            }
+            InfoBanner("Solicitud anterior protegida",
+                "Esta cuenta tiene una solicitud anterior pendiente de revisión. El carrito permanece protegido para evitar pedidos duplicados. " +
+                    "La solicitud se conserva sin cambios. Referencia: ${state.pending.requestId}", error = true)
         }
         if (!state.loading && state.items.isEmpty() && state.pending == null) {
-            item {
-                Card {
-                    Column(Modifier.fillMaxWidth().padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Tu carrito está vacío", style = MaterialTheme.typography.titleLarge)
-                        Text("Visita el catálogo y agrega tus productos favoritos.")
-                        Button(onClick = onCatalog) { Text("Ir al catálogo") }
-                    }
-                }
-            }
+            item { EmptyState("Tu carrito está vacío", "Elige tus frutos secos favoritos y vuelve aquí para confirmar.", Icons.Default.ShoppingCart) }
+            item { Button(onClick = onCatalog, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("Ir al catálogo") } }
         } else if (!state.loading) {
             items(state.items, key = { it.product.id }) { item ->
-                OutlinedCard(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically) {
-                            ProductImage(item.product, Modifier.size(64.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(item.product.name, style = MaterialTheme.typography.titleMedium)
-                                Text("${priceInPesos(item.product.priceClp)} c/u")
-                                Text("Subtotal: ${priceInPesos(item.subtotalClp.toInt())}",
-                                    color = MaterialTheme.colorScheme.primary)
+                Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shape = MaterialTheme.shapes.small) {
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val compact = maxWidth < 350.dp
+                        Column(Modifier.padding(8.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                ProductImage(item.product, Modifier.size(42.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(item.product.name, style = MaterialTheme.typography.labelMedium)
+                                    Text("${item.product.weightGrams} g", style = MaterialTheme.typography.labelSmall)
+                                    Text(priceInPesos(item.product.priceClp), style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.primary)
+                                }
+                                if (!compact) CartQuantityControls(item.quantity, state.canEdit,
+                                    item.quantity < item.product.stock,
+                                    { onChange(item.product.id, item.quantity - 1) },
+                                    { onChange(item.product.id, item.quantity + 1) })
+                                IconButton(onClick = { onChange(item.product.id, 0) }, enabled = state.canEdit, modifier = Modifier.size(48.dp)) {
+                                    Icon(Icons.Default.DeleteOutline, "Quitar", tint = MaterialTheme.colorScheme.error)
+                                }
                             }
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            OutlinedButton(onClick = { onChange(item.product.id, item.quantity - 1) },
-                                enabled = state.canEdit) { Text("−") }
-                            Text("${item.quantity}")
-                            OutlinedButton(onClick = { onChange(item.product.id, item.quantity + 1) },
-                                enabled = state.canEdit && item.quantity < item.product.stock) { Text("+") }
-                            Spacer(Modifier.weight(1f))
-                            TextButton(onClick = { onChange(item.product.id, 0) }, enabled = state.canEdit) {
-                                Text("Quitar")
-                            }
-                        }
-                        if (state.pending == null && item.quantity > item.product.stock) {
-                            Text("El stock disminuyó. Ajusta la cantidad antes de comprar.",
-                                color = MaterialTheme.colorScheme.error)
+                            if (compact) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("Subtotal: ${priceInPesos(item.subtotalClp)}", Modifier.weight(1f),
+                                    style = MaterialTheme.typography.labelSmall)
+                                CartQuantityControls(item.quantity, state.canEdit, item.quantity < item.product.stock,
+                                    { onChange(item.product.id, item.quantity - 1) },
+                                    { onChange(item.product.id, item.quantity + 1) })
+                            } else Text("Subtotal: ${priceInPesos(item.subtotalClp)}", style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.align(Alignment.End))
+                            if (state.pending == null && item.quantity > item.product.stock)
+                                Text("El stock disminuyó. Ajusta la cantidad antes de continuar.", color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
             }
             if (state.pending == null) item {
-                HorizontalDivider()
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Total estimado", style = MaterialTheme.typography.titleLarge)
-                    Text(priceInPesos(state.total.toInt()),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.primary)
-                }
-                Spacer(Modifier.height(8.dp))
-                Text("El servidor verificará los precios y el stock al confirmar " +
-                    "el pedido. No se realizará ningún pago ni envío real.",
-                    style = MaterialTheme.typography.bodySmall)
-                Spacer(Modifier.height(12.dp))
-                Button(onClick = onCheckout,
-                    enabled = state.canCheckout,
-                    modifier = Modifier.fillMaxWidth()) {
-                    Text("Continuar al pedido")
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest)) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Resumen del carrito", style = MaterialTheme.typography.titleMedium)
+                        Text("Total estimado", style = MaterialTheme.typography.bodyMedium)
+                        Text(priceInPesos(state.total), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary)
+                        Text("Los precios y las existencias se comprobarán al confirmar. No se realizan pagos desde la app.",
+                            style = MaterialTheme.typography.bodySmall)
+                        Button(onClick = onCheckout, enabled = state.canCheckout, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+                            Icon(Icons.Default.ShoppingBag, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Continuar al pedido")
+                        }
+                    }
                 }
             }
         }
-        if (state.notice != null) item { Text(state.notice, color = MaterialTheme.colorScheme.primary) }
-        if (state.error != null) item {
-            Text(state.error, color = MaterialTheme.colorScheme.error)
+        state.notice?.let { item { InfoBanner("Carrito actualizado", it) } }
+        state.error?.let { message -> item {
+            InfoBanner("No pudimos actualizar el carrito", message, error = true)
             TextButton(onClick = onRetry) { Text("Reintentar") }
-        }
+        } }
     }
+}
+
+@Composable
+private fun RowScope.CartQuantityControls(quantity: Int, editable: Boolean, canIncrease: Boolean,
+    onDecrease: () -> Unit, onIncrease: () -> Unit) {
+    TextButton(onClick = onDecrease, enabled = editable, modifier = Modifier.size(48.dp),
+        contentPadding = PaddingValues(0.dp)) { Text("−") }
+    Text("$quantity", style = MaterialTheme.typography.labelLarge)
+    TextButton(onClick = onIncrease, enabled = editable && canIncrease, modifier = Modifier.size(48.dp),
+        contentPadding = PaddingValues(0.dp)) { Text("+") }
 }
