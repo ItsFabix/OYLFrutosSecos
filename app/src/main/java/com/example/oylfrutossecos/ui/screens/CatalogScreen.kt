@@ -38,12 +38,12 @@ fun CatalogScreen(state: CatalogState, onSearch: (String) -> Unit,
                 }
             }
         }
-        when {
-            state.loading -> item(span = { GridItemSpan(maxLineSpan) }) { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-            state.error != null -> item(span = { GridItemSpan(maxLineSpan) }) {
+        if (state.error != null) item(span = { GridItemSpan(maxLineSpan) }) {
                 Column { InfoBanner("Catálogo no disponible", state.error, error = true)
                     TextButton(onClick = onRetry) { Text("Reintentar") } }
-            }
+        }
+        when {
+            state.loading -> item(span = { GridItemSpan(maxLineSpan) }) { LinearProgressIndicator(Modifier.fillMaxWidth()) }
             state.visibleProducts.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
                 Column { EmptyState("Sin coincidencias", "Prueba otro nombre o categoría.")
                     TextButton(onClick = onClear) { Text("Limpiar filtros") } }

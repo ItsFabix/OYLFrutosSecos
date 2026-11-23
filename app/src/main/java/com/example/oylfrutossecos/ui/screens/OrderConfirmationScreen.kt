@@ -33,9 +33,14 @@ fun OrderConfirmationScreen(user: User, cart: CartState, state: OrderUiState,
         when {
             cart.loading -> item { CircularProgressIndicator() }
             cart.pending != null -> item {
-                InfoBanner("Pedido no disponible",
-                    "Hay una solicitud anterior pendiente de revisión. Para evitar duplicados no se creará otro pedido ni se reenviará esa solicitud. " +
+                InfoBanner("Resultado pendiente",
+                    "Se reenviará exactamente la solicitud guardada. No se genera otro pedido, aunque el stock actual sea cero. " +
                         "Referencia: ${cart.pending.requestId}", error = true)
+                state.error?.let { Text(storeMessage(it), color = MaterialTheme.colorScheme.error) }
+                Button(onClick = { onConfirm(cart.pending.delivery) }, enabled = !state.busy,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
+                    Text(if (state.busy) "Recuperando…" else "Recuperar pedido pendiente")
+                }
             }
             cart.items.isEmpty() -> item { EmptyState("Tu carrito está vacío", "Regresa al catálogo para elegir productos.", Icons.AutoMirrored.Filled.ReceiptLong) }
             else -> {
@@ -75,7 +80,7 @@ fun OrderConfirmationScreen(user: User, cart: CartState, state: OrderUiState,
                     }
                 }
                 item { InfoBanner("Antes de confirmar",
-                    "El pedido quedará pendiente para que el administrador lo revise. Se vaciará tu carrito, sin descontar stock automáticamente. No se realizan pagos ni envíos reales.") }
+                    "Spring Boot comprobará los precios y descontará el stock en una transacción. El carrito se vaciará cuando el servidor confirme el registro. No se realizan pagos ni envíos reales.") }
                 item {
                     if (cart.items.any { it.quantity > it.product.stock }) Text("Hay productos sin stock suficiente. Vuelve al carrito.", color = MaterialTheme.colorScheme.error)
                     state.error?.let { Text(storeMessage(it), color = MaterialTheme.colorScheme.error) }

@@ -61,7 +61,8 @@ fun OylApp() {
         }
     } else if (currentUser != null) {
         key(currentUser.id) {
-            StoreNavigation(currentUser, auth.loggingOut, auth.sessionError, auth::logout)
+            StoreNavigation(currentUser, auth.loggingOut, auth.sessionError, auth::logout,
+                onProfileUpdated = auth::acceptUpdatedProfile)
         }
     } else if (auth.sessionError != null) {
         Surface(Modifier.fillMaxSize()) {

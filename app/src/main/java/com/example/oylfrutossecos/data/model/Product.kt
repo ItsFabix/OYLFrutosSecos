@@ -9,5 +9,6 @@ data class Product(
     val priceClp: Int,
     val weightGrams: Int,
     val stock: Int,
-    val imageKey: String
+    val imageKey: String,
+    val remoteId: Long? = null
 )

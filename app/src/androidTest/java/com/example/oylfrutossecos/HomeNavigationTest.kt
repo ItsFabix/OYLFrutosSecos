@@ -35,6 +35,7 @@ import org.junit.Test
 class HomeNavigationTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
     private lateinit var database: OylDatabase
+    private lateinit var api: NavigationTestApi
     private var previousDatabase: OylDatabase? = null
     private lateinit var client: User
     private val singleton = OylDatabase::class.java.getDeclaredField("instance").apply { isAccessible = true }
@@ -54,6 +55,7 @@ class HomeNavigationTest {
         }
         database = OylDatabase::class.java.getDeclaredConstructor(Context::class.java)
             .apply { isAccessible = true }.newInstance(context)
+        api = NavigationTestApi(database)
         val form = Registration("Cliente de Prueba", "navtest", "navtest@example.cl", "912345678",
             "Calle de Prueba 123", "Cliente123", "Cliente123")
         val id = database.registerClient(form)
@@ -74,10 +76,87 @@ class HomeNavigationTest {
         }
     }
 
-    private fun render(admin: Boolean) {
+    private fun render(admin: Boolean, onLogout: () -> Unit = {}) {
         val user = if (admin) client.copy(id = 1, name = "Administrador", alias = "admin", role = UserRole.ADMIN) else client
-        compose.setContent { OYLFrutosSecosTheme { StoreNavigation(user, false, null, {}) } }
+        compose.setContent { OYLFrutosSecosTheme { StoreNavigation(user, false, null, onLogout, api) } }
         compose.waitUntil(30000) { compose.onAllNodesWithText("Hola, ${user.name}").fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    @Test fun leavingAndReopeningPickupMapStartsInOverviewAgain() {
+        render(false)
+        open("Puntos de retiro", "Vista general · 2 locales")
+        compose.onNodeWithText("Ver todos").assertIsSelected()
+        compose.onNodeWithText("Ñuñoa").performClick().assertIsSelected()
+        compose.onNodeWithText("Referencia: Plaza Ñuñoa, Santiago").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Volver").performClick()
+        compose.onNodeWithTag("home-list").assertExists()
+        open("Puntos de retiro", "Vista general · 2 locales")
+        compose.onNodeWithText("Ver todos").assertIsSelected()
+        compose.onNodeWithText("Ñuñoa").assertIsNotSelected()
+        compose.waitUntil(10000) {
+            var fitted = false
+            compose.runOnIdle {
+                val map = compose.activity.findViewById<android.view.View>(android.R.id.content)
+                    .findViewWithTag<org.osmdroid.views.MapView>("pickup-map")
+                fitted = map.overlays.filterIsInstance<org.osmdroid.views.overlay.Marker>().size == 2 &&
+                    com.example.oylfrutossecos.data.repository.DemoPickupPoints.all.all {
+                        map.boundingBox.contains(it.latitude, it.longitude)
+                    }
+            }
+            fitted
+        }
+    }
+
+    @Test fun profileEditsRefreshAccountAndPersistAfterLogoutAndLoginAt320dp() {
+        database.saveSession(client.id)
+        lateinit var auth: com.example.oylfrutossecos.ui.viewmodel.AuthViewModel
+        compose.activityRule.scenario.onActivity {
+            auth = androidx.lifecycle.ViewModelProvider(it,
+                com.example.oylfrutossecos.ui.viewmodel.AuthViewModel.Factory(
+                    com.example.oylfrutossecos.data.repository.AuthRepository(database)))[com.example.oylfrutossecos.ui.viewmodel.AuthViewModel::class.java]
+        }
+        compose.setContent { OYLFrutosSecosTheme {
+            Box(Modifier.size(320.dp, 640.dp)) {
+                val user = auth.user
+                if (user != null) key(user.id) {
+                    StoreNavigation(user, auth.loggingOut, auth.sessionError, auth::logout, api, auth::acceptUpdatedProfile)
+                } else androidx.compose.material3.Text("Sesión cerrada")
+            }
+        } }
+        compose.waitUntil(30000) { compose.onAllNodesWithText("Cuenta").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Cuenta").performClick()
+        compose.onNodeWithText("Editar perfil").assertIsDisplayed().performClick()
+        compose.onNodeWithText("Nombre").performTextReplacement("X")
+        compose.onNodeWithText("Guardar cambios").performScrollTo().performClick()
+        compose.onNodeWithText("Ingresa un nombre de 2 a 80 caracteres.").assertExists()
+        compose.onNodeWithText("Nombre").performScrollTo().performTextReplacement("Cliente Editado")
+        compose.onNodeWithText("Teléfono").performScrollTo().performTextReplacement("987654321")
+        compose.onNodeWithText("Dirección").performScrollTo().performTextReplacement("Calle Nueva 456")
+        androidx.test.espresso.Espresso.closeSoftKeyboard()
+        compose.onNodeWithText("Guardar cambios").performScrollTo().performClick()
+        compose.waitUntil(30000) { compose.onAllNodesWithText("Perfil actualizado").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Cliente Editado").assertIsDisplayed()
+        compose.onNodeWithTag("account-list").performScrollToNode(hasText("Datos de la cuenta"))
+        compose.onNodeWithText("Datos de la cuenta").performClick()
+        compose.onNodeWithTag("account-list").performScrollToNode(hasText("Calle Nueva 456"))
+        compose.onNodeWithText("Calle Nueva 456").assertIsDisplayed()
+        compose.onNodeWithText("987654321").assertIsDisplayed()
+        compose.onNodeWithTag("account-list").performScrollToNode(hasText("Cerrar sesión"))
+        compose.onNodeWithText("Cerrar sesión").performClick()
+        compose.waitUntil(30000) { auth.user == null && !auth.loggingOut }
+        compose.runOnIdle {
+            auth.changeLogin(client.alias, "Cliente123", UserRole.CLIENT)
+            auth.login()
+        }
+        compose.waitUntil(30000) { auth.user != null }
+        compose.onNodeWithText("Cuenta").performClick()
+        compose.onNodeWithText("Cliente Editado").assertIsDisplayed()
+        compose.onNodeWithText("Editar perfil").performClick()
+        compose.onNodeWithText("987654321").assertExists()
+        compose.onNodeWithText("Calle Nueva 456").assertExists()
+        org.junit.Assert.assertEquals(client.id, auth.user!!.id)
+        org.junit.Assert.assertEquals(client.alias, auth.user!!.alias)
+        org.junit.Assert.assertEquals(UserRole.CLIENT, auth.user!!.role)
     }
 
     private fun home() {
@@ -111,6 +190,11 @@ class HomeNavigationTest {
             .assertIsDisplayed()
         home()
         compose.onNodeWithText("Ver carrito").assertIsDisplayed()
+        compose.onNodeWithText("Configuración administrativa").assertDoesNotExist()
+        compose.onNodeWithText("Cuenta").performClick()
+        compose.onNodeWithText("Configuración administrativa").assertDoesNotExist()
+        compose.onNodeWithText("Configurar acceso").assertDoesNotExist()
+        compose.onNodeWithText("Clave administrativa").assertDoesNotExist()
     }
 
     @Test fun adminDashboardNavigatesToExistingDestinationsAndReturnsHome() {
@@ -118,10 +202,136 @@ class HomeNavigationTest {
         open("Gestionar productos", "Gestión de productos")
         home()
         open("Inventario", "Gestión de inventario")
+        compose.onNodeWithText("Acceso administrativo requerido").assertIsDisplayed()
         home()
         open("Pedidos", "Gestionar pedidos")
+        compose.onNodeWithText("Acceso administrativo requerido").assertIsDisplayed()
         home()
         compose.onNodeWithText("Resumen general").assertIsDisplayed()
+    }
+
+    private fun configureAccess(key: String) {
+        compose.onNodeWithText("Clave administrativa").performScrollTo().performTextInput(key)
+        compose.onNodeWithText("Conectar administración").performScrollTo().performClick()
+    }
+
+    private fun openAdminSettings() {
+        compose.onNodeWithText("Cuenta").performClick()
+        compose.onNodeWithTag("account-list").performScrollToNode(hasText("Configuración administrativa"))
+        compose.onNodeWithText("Configuración administrativa").performClick()
+        compose.onNodeWithTag("admin-settings").assertExists()
+    }
+
+    private fun session() = androidx.lifecycle.ViewModelProvider(compose.activity)
+        .get("admin-session-1", com.example.oylfrutossecos.ui.viewmodel.AdminSessionViewModel::class.java)
+
+    @Test fun missingAccessCanBeConfiguredFromInventoryAndLogoutClearsItBeforeCallback() {
+        var loggedOut = false
+        render(true) {
+            org.junit.Assert.assertFalse(session().configured)
+            org.junit.Assert.assertEquals("", session().key())
+            loggedOut = true
+        }
+        open("Inventario", "Gestión de inventario")
+        compose.onNodeWithText("Acceso administrativo requerido").assertIsDisplayed()
+        compose.onNodeWithText("Configurar acceso").performClick()
+        configureAccess("navigation-test-admin-key")
+        compose.waitUntil(10000) { session().configured }
+        compose.onNodeWithText("Clave administrativa").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Volver").performClick()
+        compose.waitUntil(10000) { compose.onAllNodesWithContentDescription("Registrar entrada / salida de Almendras naturales")
+            .fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Acceso administrativo requerido").assertDoesNotExist()
+        compose.onNodeWithText("Cuenta").performClick()
+        compose.onNodeWithTag("account-list").performScrollToNode(hasText("Cerrar sesión"))
+        compose.onNodeWithText("Cerrar sesión").performClick()
+        compose.runOnIdle {
+            org.junit.Assert.assertTrue(loggedOut)
+            org.junit.Assert.assertEquals("", session().key())
+        }
+    }
+
+    @Test fun server403RequiresAccessAgainAndCanReplaceKeyWithoutClosingLocalSession() {
+        render(true)
+        openAdminSettings()
+        configureAccess("navigation-test-admin-key")
+        compose.waitUntil(10000) { session().configured }
+        home()
+        open("Pedidos", "Gestionar pedidos")
+        compose.waitUntil(10000) { compose.onAllNodesWithText("Actualizar pedidos").fetchSemanticsNodes().isNotEmpty() }
+        compose.runOnIdle { api.acceptedAdminKey = "rotated-test-administrative-key" }
+        compose.onNodeWithText("Actualizar pedidos").assertIsEnabled().performClick()
+        compose.waitUntil(10000) { compose.onAllNodesWithText("Acceso administrativo requerido").fetchSemanticsNodes().isNotEmpty() }
+        compose.runOnIdle { org.junit.Assert.assertEquals("", session().key()) }
+        compose.onNodeWithText("Configurar acceso").performClick()
+        configureAccess("rotated-test-administrative-key")
+        compose.waitUntil(10000) { session().configured }
+        compose.onNodeWithContentDescription("Volver").performClick()
+        compose.onNodeWithText("Acceso administrativo requerido").assertDoesNotExist()
+        compose.onNodeWithText("Actualizar pedidos").assertIsDisplayed()
+    }
+
+    @Test fun adminConfiguresOnlyFromAccountAndCanCorrectReplaceAndDisconnectWithoutLogout() {
+        render(true)
+        compose.onNodeWithText("Configurar acceso al servidor").assertDoesNotExist()
+        compose.onNodeWithText("Configurar acceso").assertDoesNotExist()
+        compose.onNodeWithText("Configuración administrativa").assertDoesNotExist()
+        compose.onNodeWithText("Inventario no disponible").assertDoesNotExist()
+        compose.onNodeWithText("Historial no disponible").assertDoesNotExist()
+        openAdminSettings()
+        configureAccess("incorrect-test-administrative-key")
+        compose.waitUntil(10000) { compose.onAllNodesWithText("El servidor rechazó la clave", substring = true)
+            .fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("Acceso administrativo conectado").assertDoesNotExist()
+        configureAccess("navigation-test-admin-key")
+        compose.waitUntil(10000) { compose.onAllNodesWithText("Acceso administrativo conectado").fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(10000) {
+            val provider = androidx.lifecycle.ViewModelProvider(compose.activity)
+            val orders = provider["orders-1", com.example.oylfrutossecos.ui.viewmodel.OrderViewModel::class.java].state.value
+            val inventory = provider["inventory-1", com.example.oylfrutossecos.ui.viewmodel.InventoryViewModel::class.java].state.value
+            orders.remoteFresh && !orders.loading && orders.error == null && !inventory.loading && inventory.error == null && inventory.products.size == 8
+        }
+        compose.onNodeWithText("Inventario no disponible").assertDoesNotExist()
+        compose.onNodeWithText("Historial no disponible").assertDoesNotExist()
+        compose.onNodeWithText("Clave administrativa").assertDoesNotExist()
+        compose.onNodeWithText("Cambiar clave").performScrollTo().performClick()
+        configureAccess("incorrect-replacement-test-key")
+        compose.waitUntil(10000) { !session().configured && session().error != null }
+        compose.runOnIdle { org.junit.Assert.assertEquals("", session().key()) }
+        configureAccess("navigation-test-admin-key")
+        compose.waitUntil(10000) { session().configured }
+        compose.onNodeWithText("Desconectar acceso").performScrollTo().performClick()
+        compose.onNodeWithText("Acceso administrativo conectado").assertDoesNotExist()
+        compose.onNodeWithText("Clave administrativa").assertExists()
+        compose.runOnIdle { org.junit.Assert.assertEquals("", session().key()) }
+    }
+
+    @Test fun authorizedAdminDoesNotNeedKeyAgainAfterNavigationOrActivityRecreation() {
+        database.saveSession(1)
+        render(true)
+        openAdminSettings()
+        configureAccess("navigation-test-admin-key")
+        compose.waitUntil(10000) { compose.onAllNodesWithText("Acceso administrativo conectado").fetchSemanticsNodes().isNotEmpty() }
+        home()
+        open("Inventario", "Gestión de inventario")
+        compose.onNodeWithText("Acceso administrativo requerido").assertDoesNotExist()
+        compose.onNodeWithText("Configurar acceso").assertDoesNotExist()
+        home()
+        open("Pedidos", "Gestionar pedidos")
+        compose.onNodeWithText("Acceso administrativo requerido").assertDoesNotExist()
+        compose.onNodeWithText("Clave administrativa").assertDoesNotExist()
+        compose.activityRule.scenario.recreate()
+        compose.activityRule.scenario.onActivity { activity ->
+            val restored = database.readSession()!!
+            org.junit.Assert.assertEquals(UserRole.ADMIN, restored.role)
+            activity.setContent { OYLFrutosSecosTheme { StoreNavigation(restored, false, null, {}, api) } }
+        }
+        compose.waitForIdle()
+        compose.runOnIdle { org.junit.Assert.assertTrue(session().configured) }
+        compose.onNodeWithText("Acceso administrativo requerido").assertDoesNotExist()
+        openAdminSettings()
+        compose.onNodeWithText("Acceso administrativo conectado").assertIsDisplayed()
+        compose.onNodeWithText("Clave administrativa").assertDoesNotExist()
     }
 
     private fun snapshot(name: String) {
@@ -131,7 +341,7 @@ class HomeNavigationTest {
         File(directory, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
-    @Test fun localCheckoutAndAdminStatusesThroughRealNavigationAtSmallWidth() {
+    @Test fun restCheckoutAndAdminStatusesThroughRealNavigationAtSmallWidth() {
         val selected = database.readProducts().first { it.stock >= 2 }
         database.setCartQuantity(client.id, selected.id, 2)
         val admin = database.authenticate("admin", "Admin1234", UserRole.ADMIN)!!
@@ -139,7 +349,7 @@ class HomeNavigationTest {
         compose.setContent {
             OYLFrutosSecosTheme {
                 Box(Modifier.width(320.dp)) {
-                    key(current.value.id) { StoreNavigation(current.value, false, null, {}) }
+                    key(current.value.id) { StoreNavigation(current.value, false, null, {}, api) }
                 }
             }
         }
@@ -167,7 +377,7 @@ class HomeNavigationTest {
         }
         org.junit.Assert.assertTrue(database.readCart(client.id).isEmpty())
         org.junit.Assert.assertEquals(1, database.readOrders(client.id).size)
-        org.junit.Assert.assertEquals(selected.stock,
+        org.junit.Assert.assertEquals(selected.stock - 2,
             database.readProducts().first { it.id == selected.id }.stock)
 
         compose.runOnIdle { current.value = admin }
@@ -176,6 +386,13 @@ class HomeNavigationTest {
         }
         snapshot("admin-inicio")
         open("Pedidos", "Gestionar pedidos")
+        compose.onNodeWithText("Acceso administrativo requerido").assertIsDisplayed()
+        compose.onNodeWithText("Configurar acceso").performClick()
+        configureAccess("navigation-test-admin-key")
+        compose.waitUntil(10000) { session().configured }
+        compose.onNodeWithContentDescription("Volver").performClick()
+        compose.waitUntil(30000) { compose.onAllNodesWithText("Marcar como Confirmado")
+            .fetchSemanticsNodes().isNotEmpty() }
         for (status in listOf("Confirmado", "Preparado", "Entregado")) {
             compose.onNodeWithTag("orders-list").performScrollToNode(hasText("Marcar como $status"))
             compose.onNodeWithText("Marcar como $status").performClick()
@@ -208,7 +425,7 @@ class HomeNavigationTest {
             OYLFrutosSecosTheme {
                 Box(Modifier.size(selection.value.first.dp, (selection.value.first * 2).dp).testTag("reference-root")) {
                     key(selection.value.first, selection.value.second.id) {
-                        StoreNavigation(selection.value.second, false, null, {})
+                        StoreNavigation(selection.value.second, false, null, {}, api)
                     }
                 }
             }

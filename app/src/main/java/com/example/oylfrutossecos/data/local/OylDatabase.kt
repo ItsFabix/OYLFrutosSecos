@@ -24,7 +24,7 @@ import com.example.oylfrutossecos.data.model.NoticeKind
 
 // Estos métodos se invocan desde Dispatchers.IO en AuthRepository.
 class OylDatabase private constructor(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, "oyl_auth.db", null, 7) {
+    SQLiteOpenHelper(context.applicationContext, "oyl_auth.db", null, 8) {
 
     override fun onConfigure(db: SQLiteDatabase) {
         db.setForeignKeyConstraintsEnabled(true)
@@ -64,6 +64,7 @@ class OylDatabase private constructor(context: Context) :
         createInventoryTables(db)
         createNoticeTable(db)
         seedLowStockNotices(db)
+        createRemoteProductMapping(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -77,6 +78,15 @@ class OylDatabase private constructor(context: Context) :
             createNoticeTable(db)
             seedLowStockNotices(db)
         }
+        if (oldVersion < 8) createRemoteProductMapping(db)
+    }
+
+    private fun createRemoteProductMapping(db: SQLiteDatabase) {
+        // Copia aditiva del catálogo previo: no se pierden productos ni fotos locales.
+        db.execSQL("CREATE TABLE IF NOT EXISTS products_before_rest AS SELECT * FROM products")
+        db.execSQL("ALTER TABLE products ADD COLUMN server_product_id INTEGER")
+        db.execSQL("ALTER TABLE products ADD COLUMN remote_active INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("CREATE UNIQUE INDEX idx_products_server ON products(server_product_id)")
     }
 
 
@@ -130,7 +140,11 @@ class OylDatabase private constructor(context: Context) :
                     priceClp = cursor.getInt(cursor.getColumnIndexOrThrow("price_clp")),
                     weightGrams = cursor.getInt(cursor.getColumnIndexOrThrow("weight_grams")),
                     stock = cursor.getInt(cursor.getColumnIndexOrThrow("stock")),
-                    imageKey = cursor.getString(cursor.getColumnIndexOrThrow("image_key"))
+                    imageKey = cursor.getString(cursor.getColumnIndexOrThrow("image_key")),
+                    remoteId = cursor.getColumnIndexOrThrow("server_product_id").let {
+                        if (cursor.isNull(it) || cursor.getInt(cursor.getColumnIndexOrThrow("remote_active")) == 0)
+                            null else cursor.getLong(it)
+                    }
                 ))
             }
         }
@@ -181,7 +195,7 @@ class OylDatabase private constructor(context: Context) :
                 arrayOf(userId.toString())
             ).use { it.moveToFirst() }
             check(!pendingOrder) {
-                "Hay una solicitud remota anterior conservada. Este carrito requiere revisión antes de crear pedidos locales."
+                "Hay un pedido REST pendiente. Usa Recuperar pedido pendiente antes de modificar el carrito."
             }
             if (quantity <= 0) {
                 db.delete("cart_items", "user_id = ? AND product_id = ?",
@@ -385,6 +399,41 @@ class OylDatabase private constructor(context: Context) :
                 }
             }
         return result
+    }
+
+    fun notifyRemoteStock(name: String, before: Int?, after: Int) {
+        if (after <= InventoryRules.LOW_STOCK_LIMIT &&
+            (before == null || before > InventoryRules.LOW_STOCK_LIMIT || (after == 0 && before > 0))) {
+            forEachAdmin(writableDatabase) { adminId ->
+                addNotice(writableDatabase, adminId, NoticeKind.STOCK_LOW,
+                    if (after == 0) "Producto agotado" else "Alerta de stock bajo",
+                    "$name: quedan $after bolsas en el servidor.", "inventory")
+            }
+        }
+    }
+
+    fun notifyRemoteOrderCreated(userId: Long, orderId: Long) {
+        addNotice(writableDatabase, userId, NoticeKind.ORDER_CREATED,
+            "Pedido REST #$orderId registrado", "El servidor confirmó tu pedido.", "orders")
+    }
+
+    fun updateRemoteOrderStatus(userId: Long, serverId: String, status: String) {
+        val next = OrderStatus.valueOf(status)
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val row = db.rawQuery("SELECT id, status FROM demo_orders WHERE user_id = ? AND server_order_id = ?",
+                arrayOf(userId.toString(), serverId)).use {
+                if (it.moveToFirst()) it.getLong(0) to it.getString(1) else null
+            }
+            if (row != null && row.second != status) {
+                db.update("demo_orders", ContentValues().apply { put("status", status) },
+                    "id = ? AND user_id = ?", arrayOf(row.first.toString(), userId.toString()))
+                addNotice(db, userId, NoticeKind.ORDER_STATUS, "Pedido REST #${row.first}: ${next.displayName}",
+                    "El servidor actualizó el estado de tu pedido.", "orders")
+            }
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
     }
 
     fun advanceDemoOrder(orderId: Long) {
@@ -636,6 +685,28 @@ class OylDatabase private constructor(context: Context) :
 
     fun clearSession() {
         writableDatabase.delete("session", null, null)
+    }
+
+    fun updateOwnProfile(expectedUserId: Long, draft: com.example.oylfrutossecos.data.model.ProfileDraft): User {
+        require(com.example.oylfrutossecos.domain.ProfileValidator.validate(draft).isEmpty()) {
+            "Revisa los datos personales antes de guardar."
+        }
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            check(readSession()?.id == expectedUserId) { "La sesión cambió. Vuelve a abrir tu perfil." }
+            val values = ContentValues().apply {
+                put("name", draft.name.trim())
+                put("phone", draft.phone.trim())
+                put("address", draft.address.trim())
+            }
+            check(db.update("users", values,
+                "id = ? AND EXISTS (SELECT 1 FROM session s WHERE s.id = 1 AND s.user_id = users.id)",
+                arrayOf(expectedUserId.toString())) == 1) { "No se pudo actualizar tu perfil." }
+            val updated = checkNotNull(readSession()) { "No se pudo recuperar tu perfil actualizado." }
+            db.setTransactionSuccessful()
+            return updated
+        } finally { db.endTransaction() }
     }
 
     private fun Cursor.toUser() = User(

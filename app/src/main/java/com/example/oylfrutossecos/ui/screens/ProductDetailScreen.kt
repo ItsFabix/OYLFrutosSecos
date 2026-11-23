@@ -72,7 +72,7 @@ fun ProductDetailScreen(product: Product?, loading: Boolean, error: String?,
                 }
                 HorizontalDivider()
                 Text("Categoría: ${product.category}", style = MaterialTheme.typography.bodySmall)
-                Text("Código de producto: ${product.id}", style = MaterialTheme.typography.bodySmall)
+                Text("Código de producto: ${product.remoteId ?: product.id}", style = MaterialTheme.typography.bodySmall)
                 Text("Los pedidos no generan pagos ni envíos reales.",
                     style = MaterialTheme.typography.bodySmall)
             }

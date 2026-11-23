@@ -3,6 +3,7 @@ package com.example.oylfrutossecos.data.repository
 import android.database.sqlite.SQLiteConstraintException
 import com.example.oylfrutossecos.data.local.OylDatabase
 import com.example.oylfrutossecos.data.model.Registration
+import com.example.oylfrutossecos.data.model.ProfileDraft
 import com.example.oylfrutossecos.data.model.User
 import com.example.oylfrutossecos.data.model.UserRole
 import com.example.oylfrutossecos.domain.AuthValidator
@@ -34,5 +35,9 @@ class AuthRepository(private val database: OylDatabase) {
 
     suspend fun logout() = withContext(Dispatchers.IO) {
         database.clearSession()
+    }
+
+    suspend fun updateOwnProfile(expectedUserId: Long, draft: ProfileDraft): User = withContext(Dispatchers.IO) {
+        database.updateOwnProfile(expectedUserId, draft)
     }
 }

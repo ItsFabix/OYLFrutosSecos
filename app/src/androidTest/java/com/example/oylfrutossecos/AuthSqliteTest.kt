@@ -23,6 +23,7 @@ import org.junit.Test
 class AuthSqliteTest {
     private lateinit var database: OylDatabase
     private lateinit var repository: AuthRepository
+    private lateinit var isolatedContext: Context
     private val store = ViewModelStore()
     private val valid = Registration("Cliente Nuevo", "nuevo", "nuevo@example.cl", "912345678",
         "Calle de Prueba 123", "Cliente123", "Cliente123")
@@ -40,6 +41,7 @@ class AuthSqliteTest {
                 errorHandler: DatabaseErrorHandler?) = SQLiteDatabase.openDatabase(file.absolutePath, factory,
                     SQLiteDatabase.CREATE_IF_NECESSARY, errorHandler)
         }
+        isolatedContext = context
         database = OylDatabase::class.java.getDeclaredConstructor(Context::class.java)
             .apply { isAccessible = true }.newInstance(context)
         repository = AuthRepository(database)
@@ -118,5 +120,71 @@ class AuthSqliteTest {
         assertEquals(original, repository.login(valid.alias, valid.password, UserRole.CLIENT))
         assertEquals(2, database.readableDatabase.rawQuery("SELECT COUNT(*) FROM users", null)
             .use { it.moveToFirst(); it.getInt(0) })
+    }
+
+    @Test fun profilePersistsAcrossDatabaseReopenAndLoginWithoutChangingCredentialsCartOrdersOrPendingRequest() = runBlocking {
+        repository.register(valid)
+        val original = repository.login(valid.alias, valid.password, UserRole.CLIENT)!!
+        database.setCartQuantity(original.id, 1, 1)
+        database.placeDemoOrder(original, DeliveryMethod.PICKUP, database.readCart(original.id))
+        val ordersBefore = database.readOrders(original.id)
+        database.setCartQuantity(original.id, 1, 2)
+        val cartBefore = database.readCart(original.id)
+        val cache = com.example.oylfrutossecos.data.local.RemoteCheckoutCache(database)
+        val pending = cache.getOrCreate(original.id, UUID.randomUUID().toString(),
+            "{\"contactAddress\":\"Dirección original\",\"contactPhone\":\"912345678\"}", DeliveryMethod.DELIVERY, cartBefore)
+        fun credentials() = database.readableDatabase.rawQuery(
+            "SELECT hex(password_salt), hex(password_hash) FROM users WHERE id = ?", arrayOf(original.id.toString())
+        ).use { it.moveToFirst(); it.getString(0) to it.getString(1) }
+        val credentialsBefore = credentials()
+        val updated = repository.updateOwnProfile(original.id, ProfileDraft("  Nombre Editado  ", "+56 9 8765 4321", "  Calle Nueva 456  "))
+        assertEquals(original.copy(name = "Nombre Editado", phone = "+56 9 8765 4321", address = "Calle Nueva 456"), updated)
+        assertEquals(updated, repository.currentUser())
+        assertEquals(credentialsBefore, credentials())
+        database.close()
+        database = OylDatabase::class.java.getDeclaredConstructor(Context::class.java)
+            .apply { isAccessible = true }.newInstance(isolatedContext)
+        repository = AuthRepository(database)
+        assertEquals(updated, repository.currentUser())
+        repository.logout()
+        assertEquals(updated, repository.login(valid.alias, valid.password, UserRole.CLIENT))
+        assertEquals(ordersBefore, database.readOrders(original.id))
+        assertEquals(cartBefore, database.readCart(original.id))
+        assertEquals(pending, com.example.oylfrutossecos.data.local.RemoteCheckoutCache(database).pending(original.id))
+        assertEquals(8, database.readableDatabase.version)
+    }
+
+    @Test fun profileCannotUpdateAnotherUserOrUseAFormAfterSessionChangesOrLogout() = runBlocking {
+        repository.register(valid)
+        repository.register(valid.copy(alias = "segundo", email = "segundo@example.cl"))
+        val first = repository.login(valid.alias, valid.password, UserRole.CLIENT)!!
+        val second = database.authenticate("segundo", valid.password, UserRole.CLIENT)!!
+        val draft = ProfileDraft("Nombre cambiado", "987654321", "Calle Nueva 456")
+        suspend fun rejected(id: Long) {
+            try { repository.updateOwnProfile(id, draft); fail("another user's profile updated") }
+            catch (_: IllegalStateException) { }
+        }
+        rejected(second.id)
+        repository.login("segundo", valid.password, UserRole.CLIENT)
+        rejected(first.id)
+        assertEquals(first, database.authenticate(first.alias, valid.password, UserRole.CLIENT))
+        assertEquals(second, repository.currentUser())
+        val updatedSecond = repository.updateOwnProfile(second.id, draft)
+        assertEquals(second.id, updatedSecond.id)
+        assertEquals(first, database.authenticate(first.alias, valid.password, UserRole.CLIENT))
+        repository.logout()
+        rejected(second.id)
+        assertEquals(updatedSecond, database.authenticate(second.alias, valid.password, UserRole.CLIENT))
+    }
+
+    @Test fun invalidProfileIsRejectedByStorageWithoutPartialWrites() = runBlocking {
+        repository.register(valid)
+        val original = repository.login(valid.alias, valid.password, UserRole.CLIENT)!!
+        listOf(ProfileDraft(), ProfileDraft("X", "123", "X"),
+            ProfileDraft(original.name, "912345678", "a".repeat(161))).forEach { draft ->
+            try { repository.updateOwnProfile(original.id, draft); fail("invalid profile saved") }
+            catch (_: IllegalArgumentException) { }
+            assertEquals(original, repository.currentUser())
+        }
     }
 }

@@ -41,3 +41,7 @@ CREATE TABLE IF NOT EXISTS inventory_movements (
 ALTER TABLE demo_orders ADD COLUMN IF NOT EXISTS delivery VARCHAR(20) DEFAULT 'PICKUP' NOT NULL;
 ALTER TABLE demo_orders ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(80) DEFAULT '' NOT NULL;
 ALTER TABLE demo_orders ADD COLUMN IF NOT EXISTS contact_address VARCHAR(255) DEFAULT '' NOT NULL;
+
+-- Serializa reintentos por solicitud, incluso si envían productos diferentes.
+CREATE TABLE IF NOT EXISTS checkout_requests (request_id VARCHAR(36) PRIMARY KEY);
+CREATE SEQUENCE IF NOT EXISTS product_ids START WITH 1000;

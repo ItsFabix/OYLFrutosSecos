@@ -65,9 +65,9 @@ fun HomeScreen(
                                 Text("Resumen general", style = MaterialTheme.typography.titleMedium)
                             }
                         }
-                        val products = inventoryState?.takeIf { !it.loading && it.error == null }?.products
-                        val pending = orderState.takeIf { !it.loading && it.error == null }
-                            ?.orders?.count { it.remoteOrderId == null && it.status == OrderStatus.PENDING }
+                        val products = state.takeIf { !it.loading && it.error == null }?.products
+                        val pending = orderState.takeIf { !it.loading && it.error == null && it.remoteFresh }
+                            ?.orders?.count { it.remoteOrderId != null && it.status == OrderStatus.PENDING }
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 HomeMetric("Productos", products?.size, Icons.Default.Inventory2, Modifier.weight(1f))
@@ -87,11 +87,11 @@ fun HomeScreen(
             item { Text("Controla tus productos y pedidos", style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant) }
             if (inventoryState == null || inventoryState.error != null) item {
-                InfoBanner("Inventario no disponible", "No pudimos actualizar las existencias. Inténtalo nuevamente.", error = true)
+                InfoBanner("Inventario no disponible", inventoryState?.error ?: "No pudimos actualizar las existencias. Inténtalo nuevamente.", error = true)
                 TextButton(onClick = onRetryInventory, enabled = navigationEnabled) { Text("Reintentar inventario") }
             }
             if (orderState.error != null) item {
-                InfoBanner("Historial no disponible", "Reintenta la consulta desde Pedidos.", error = true)
+                InfoBanner("Historial no disponible", orderState.error, error = true)
             }
         } else {
             item {

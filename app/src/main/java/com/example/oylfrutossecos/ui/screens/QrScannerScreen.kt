@@ -13,7 +13,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.example.oylfrutossecos.domain.QrProductCode
+import com.example.oylfrutossecos.domain.*
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
 import com.example.oylfrutossecos.ui.components.*
 import com.example.oylfrutossecos.ui.viewmodel.CatalogState
 import com.google.mlkit.vision.barcode.common.Barcode
@@ -27,14 +29,59 @@ fun QrScannerScreen(
     isAdmin: Boolean,
     onRefresh: () -> Unit,
     onOpenProduct: (Long) -> Unit,
-    onAdjustInventory: (Long) -> Unit
+    onAdjustInventory: (Long) -> Unit,
+    scan: (((QrScanEvent) -> Unit) -> Unit)? = null
 ) {
     val context = LocalContext.current
-    var lastCode by remember { mutableStateOf("") }
+    var lastEvent by remember { mutableStateOf<QrScanEvent?>(null) }
     var manualCode by remember { mutableStateOf("") }
-    var notice by remember { mutableStateOf<String?>(null) }
-    val productId = QrProductCode.parse(lastCode)
-    val product = state.products.firstOrNull { it.id == productId }
+    var showResult by remember { mutableStateOf(false) }
+    var scanning by remember { mutableStateOf(false) }
+    val feedback = qrFeedback(lastEvent, state.products, state.loading || state.error != null)
+    val product = state.products.firstOrNull { it.id == feedback?.productId }
+    val receive = rememberUpdatedState<(QrScanEvent) -> Unit>({ event ->
+        scanning = false
+        lastEvent = event
+        showResult = event != QrScanEvent.Cancelled
+    })
+    fun startScan() {
+        scanning = true
+        lastEvent = null
+        showResult = false
+        try {
+            if (scan != null) scan { receive.value(it) }
+            else {
+                val options = GmsBarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
+                GmsBarcodeScanning.getClient(context, options).startScan()
+                    .addOnSuccessListener { receive.value(QrScanEvent.Read(it.rawValue)) }
+                    .addOnCanceledListener { receive.value(QrScanEvent.Cancelled) }
+                    .addOnFailureListener { failure ->
+                        receive.value(if (failure is ApiException && failure.statusCode == CommonStatusCodes.CANCELED)
+                            QrScanEvent.Cancelled else QrScanEvent.Failed)
+                    }
+            }
+        } catch (_: Exception) { receive.value(QrScanEvent.Failed) }
+    }
+
+    if (showResult && feedback != null) AlertDialog(
+        onDismissRequest = { showResult = false },
+        icon = { Icon(if (feedback.kind == QrFeedbackKind.VALID) Icons.Default.CheckCircle else Icons.Default.Info,
+            null, tint = if (feedback.kind == QrFeedbackKind.VALID) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error) },
+        title = { Text(feedback.title) }, text = { Text(feedback.message) },
+        confirmButton = { TextButton(onClick = {
+            showResult = false
+            when (feedback.kind) {
+                QrFeedbackKind.VALID -> feedback.productId?.let(onOpenProduct)
+                QrFeedbackKind.CATALOG_UNAVAILABLE -> { onRefresh(); showResult = true }
+                else -> startScan()
+            }
+        }) { Text(when (feedback.kind) {
+            QrFeedbackKind.VALID -> "Ver producto"
+            QrFeedbackKind.CATALOG_UNAVAILABLE -> "Actualizar catálogo"
+            else -> "Volver a escanear"
+        }) } },
+        dismissButton = { TextButton(onClick = { showResult = false }) { Text("Cerrar") } }
+    )
 
     Column(
         modifier = Modifier.fillMaxSize().testTag("qr-screen").verticalScroll(rememberScrollState()).imePadding().padding(12.dp),
@@ -51,27 +98,10 @@ fun QrScannerScreen(
                     }
                 }
                 FilledTonalButton(
-                    onClick = {
-                        notice = null
-                        try {
-                            val options = GmsBarcodeScannerOptions.Builder()
-                                .setBarcodeFormats(Barcode.FORMAT_QR_CODE)
-                                .build()
-                            GmsBarcodeScanning.getClient(context, options).startScan()
-                                .addOnSuccessListener { barcode ->
-                                    lastCode = barcode.rawValue.orEmpty().trim()
-                                    notice = if (lastCode.isBlank()) "El QR no contenía información." else "Código QR leído."
-                                }
-                                .addOnCanceledListener { notice = "Escaneo cancelado." }
-                                .addOnFailureListener {
-                                    notice = "No se pudo abrir el lector. Comprueba que los servicios de Google estén actualizados y tengas conexión a Internet."
-                                }
-                        } catch (_: Exception) {
-                            notice = "No se pudo iniciar el lector QR en este dispositivo."
-                        }
-                    },
+                    onClick = ::startScan,
+                    enabled = !scanning,
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Escanear con cámara") }
+                ) { Text(if (scanning) "Escaneando…" else "Escanear con cámara") }
             }
         }
 
@@ -88,29 +118,21 @@ fun QrScannerScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedButton(
-                    onClick = { lastCode = manualCode.trim(); notice = null },
-                    enabled = manualCode.isNotBlank(),
+                    onClick = { receive.value(QrScanEvent.Read(manualCode.trim())) },
+                    enabled = !scanning && manualCode.isNotBlank(),
                     modifier = Modifier.fillMaxWidth()
                 ) { Text("Buscar producto") }
             }
         }
 
-        if (notice != null) InfoBanner("Estado del escáner", notice.orEmpty())
-        if (lastCode.isNotBlank()) {
+        if (feedback != null && !showResult) {
             HorizontalDivider()
-            Text("Código: ${lastCode.take(100)}", style = MaterialTheme.typography.bodySmall)
-            when {
-                productId == null -> InfoBanner("Revisa el código", "Código QR no válido para OYL. Usa OYL:ID, por ejemplo OYL:1.", error = true)
-                state.loading -> CircularProgressIndicator()
-                state.error != null -> {
-                    InfoBanner("Catálogo no disponible", "No se pudo consultar el catálogo. ${state.error}", error = true)
-                    OutlinedButton(onClick = onRefresh) { Text("Reintentar") }
-                }
-                product == null -> {
-                    InfoBanner("Producto no encontrado", "No existe un producto con ese código en el catálogo.", error = true)
+            if (product == null) {
+                InfoBanner(feedback.title, feedback.message, error = true)
+                if (feedback.kind == QrFeedbackKind.CATALOG_UNAVAILABLE || feedback.kind == QrFeedbackKind.NOT_FOUND) {
                     OutlinedButton(onClick = onRefresh) { Text("Actualizar catálogo") }
                 }
-                else -> {
+            } else {
                     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest)) {
                         Column(
                             modifier = Modifier.padding(16.dp),
@@ -135,7 +157,6 @@ fun QrScannerScreen(
                             }
                         }
                     }
-                }
             }
         }
         InfoBanner("Información de productos", "Busca productos con su código. El lector de cámara utiliza los servicios de Google.")

@@ -36,6 +36,12 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+    defaultConfig {
+        val apiUrl = providers.gradleProperty("oylApiBaseUrl").getOrElse("http://10.0.2.2:8080/")
+        require(apiUrl.matches(Regex("https?://[a-zA-Z0-9.:-]+/"))) { "oylApiBaseUrl debe ser una URL base http(s) terminada en /" }
+        buildConfigField("String", "OYL_API_BASE_URL", "\"$apiUrl\"")
     }
 }
 
@@ -57,6 +63,7 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     testImplementation(libs.junit)
+    testImplementation("com.squareup.okhttp3:mockwebserver:3.14.9")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

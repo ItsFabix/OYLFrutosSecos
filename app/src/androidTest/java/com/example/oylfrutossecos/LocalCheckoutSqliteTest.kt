@@ -22,6 +22,15 @@ import org.junit.Test
 
 /** SQLite real en un archivo temporal propio; nunca abre la base ni las fotos del usuario. */
 class LocalCheckoutSqliteTest {
+    // Conserva la cobertura de SQLite anterior sin habilitar compras locales en producción.
+    private class LegacyOrders(private val database: OylDatabase) {
+        fun placeOrder(user: User, delivery: DeliveryMethod, items: List<CartItem>) = database.placeDemoOrder(user, delivery, items)
+        fun getOrders(user: User) = database.readOrders(if (user.role == UserRole.ADMIN) null else user.id)
+        fun advanceStatus(user: User, id: Long) {
+            require(user.role == UserRole.ADMIN)
+            database.advanceDemoOrder(id)
+        }
+    }
     private lateinit var database: OylDatabase
     private lateinit var context: Context
     private lateinit var client: User
@@ -82,7 +91,7 @@ class LocalCheckoutSqliteTest {
         database = openDatabase()
         assertEquals(client, AuthRepository(database).currentUser())
         assertEquals(2, CartRepository(database).getCart(client.id).single().quantity)
-        val repository = OrderRepository(database)
+        val repository = LegacyOrders(database)
         val cart = CartRepository(database).getCart(client.id)
         val id = repository.placeOrder(client, DeliveryMethod.PICKUP, cart)
         assertTrue(CartRepository(database).getCart(client.id).isEmpty())
@@ -104,7 +113,7 @@ class LocalCheckoutSqliteTest {
         assertTrue(database.readNotices(other.id).none { it.kind == NoticeKind.ORDER_STATUS })
         database.close()
         database = openDatabase()
-        assertEquals(OrderStatus.DELIVERED, OrderRepository(database).getOrders(client).single().status)
+        assertEquals(OrderStatus.DELIVERED, LegacyOrders(database).getOrders(client).single().status)
         assertEquals(selected.stock, database.readProducts().first { it.id == selected.id }.stock)
     }
 
@@ -115,13 +124,13 @@ class LocalCheckoutSqliteTest {
         val noticeCount = database.readNotices(client.id).size
         database.writableDatabase.execSQL("UPDATE products SET price_clp = price_clp + 100 WHERE id = ?",
             arrayOf(selected.id))
-        rejects { OrderRepository(database).placeOrder(client, DeliveryMethod.DELIVERY, old) }
+        rejects { LegacyOrders(database).placeOrder(client, DeliveryMethod.DELIVERY, old) }
         assertTrue(database.readOrders(null).isEmpty())
         assertEquals(noticeCount, database.readNotices(client.id).size)
         assertEquals(2, database.readCart(client.id).single().quantity)
         val updated = database.readCart(client.id)
         database.writableDatabase.execSQL("UPDATE products SET stock = 1 WHERE id = ?", arrayOf(selected.id))
-        rejects { OrderRepository(database).placeOrder(client, DeliveryMethod.DELIVERY, updated) }
+        rejects { LegacyOrders(database).placeOrder(client, DeliveryMethod.DELIVERY, updated) }
         assertTrue(database.readOrders(null).isEmpty())
         assertEquals(2, database.readCart(client.id).single().quantity)
     }
@@ -140,27 +149,27 @@ class LocalCheckoutSqliteTest {
         database.close()
         database = openDatabase()
         assertEquals(original, CartRepository(database).snapshot(client.id).pending)
-        rejects { OrderRepository(database).placeOrder(client, DeliveryMethod.DELIVERY, cart) }
+        rejects { LegacyOrders(database).placeOrder(client, DeliveryMethod.DELIVERY, cart) }
         rejects { CartRepository(database).setQuantity(client.id, selected.id, 0) }
         assertEquals(original, database.readPendingCheckout(client.id))
         assertEquals(json, database.readPendingCheckout(client.id)!!.json)
         assertEquals(1, database.readCart(client.id).single().quantity)
-        OrderRepository(database).placeOrder(other, DeliveryMethod.PICKUP, database.readCart(other.id))
+        LegacyOrders(database).placeOrder(other, DeliveryMethod.PICKUP, database.readCart(other.id))
         assertEquals(original, database.readPendingCheckout(client.id))
         assertEquals(other.id, database.readOrders(null).single().userId)
     }
 
     @Test fun catalogAndAuditedInventoryStayLocalAfterRepositoryRecreation() = runBlocking {
-        val products = ProductRepository(database)
+        val products = database
         val id = products.saveProduct(null, ProductDraft("Nueces del Sur", "Frutos secos",
             "Nueces seleccionadas en bolsa.", 4200, 250, 8))
-        InventoryRepository(database).adjust(admin.id, id, MovementType.EXIT, 2, "Salida controlada")
+        database.recordInventoryMovement(admin.id, id, MovementType.EXIT, 2, "Salida controlada")
         database.close()
         database = openDatabase()
-        val saved = ProductRepository(database).getProducts().first { it.id == id }
+        val saved = database.readProducts().first { it.id == id }
         assertEquals("Nueces del Sur", saved.name)
         assertEquals(6, saved.stock)
-        val movement = InventoryRepository(database).movements(id).single()
+        val movement = database.readInventoryMovements(id).single()
         assertEquals(8, movement.beforeStock)
         assertEquals(6, movement.afterStock)
         assertEquals("Salida controlada", movement.note)
@@ -172,8 +181,21 @@ class LocalCheckoutSqliteTest {
         val items = database.readCart(client.id)
         lateinit var vm: OrderViewModel
         var completions = 0
+        val api = object : StubOylRestService() {
+            override suspend fun products() = listOf(com.example.oylfrutossecos.data.remote.ApiProduct(
+                selected.id, selected.name, selected.category, selected.description, selected.priceClp,
+                selected.weightGrams, selected.stock, selected.imageKey))
+            override suspend fun createPersistedOrder(request: okhttp3.RequestBody): com.example.oylfrutossecos.data.remote.ApiOrderResponse {
+                delay(100)
+                val body = okio.Buffer().also { request.writeTo(it) }.readUtf8()
+                val saved = com.google.gson.Gson().fromJson(body, com.example.oylfrutossecos.data.remote.ApiOrderRequest::class.java)
+                return com.example.oylfrutossecos.data.remote.ApiOrderResponse("vm-test-order", saved.requestId,
+                    saved.customerAlias, "PENDING", selected.priceClp.toLong(),
+                    listOf(com.example.oylfrutossecos.data.remote.ApiOrderItem(selected.id, selected.name, 1, selected.priceClp)))
+            }
+        }
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
-            vm = ViewModelProvider(store, OrderViewModel.Factory(OrderRepository(database), client))[OrderViewModel::class.java]
+            vm = ViewModelProvider(store, OrderViewModel.Factory(OrderRepository(database, api), client))[OrderViewModel::class.java]
             vm.place(DeliveryMethod.PICKUP, items) { completions++ }
             vm.place(DeliveryMethod.PICKUP, items) { completions++ }
         }
@@ -194,7 +216,7 @@ class LocalCheckoutSqliteTest {
             BEGIN SELECT RAISE(ABORT, 'Simulated SQLite write failure'); END
         """.trimIndent())
         try {
-            OrderRepository(database).placeOrder(client, DeliveryMethod.PICKUP, cart)
+            LegacyOrders(database).placeOrder(client, DeliveryMethod.PICKUP, cart)
             fail("La escritura debe fallar después de insertar la cabecera")
         } catch (_: android.database.sqlite.SQLiteException) { }
         assertTrue(database.readOrders(null).isEmpty())
@@ -206,7 +228,7 @@ class LocalCheckoutSqliteTest {
     @Test fun historicalRemoteOrderIsReadOnlyAndAdminCannotCreateClientOrder() = runBlocking {
         val selected = product()
         database.setCartQuantity(client.id, selected.id, 1)
-        val repository = OrderRepository(database)
+        val repository = LegacyOrders(database)
         rejects { repository.placeOrder(admin, DeliveryMethod.PICKUP, database.readCart(client.id)) }
         val id = repository.placeOrder(client, DeliveryMethod.PICKUP, database.readCart(client.id))
         database.writableDatabase.execSQL("UPDATE demo_orders SET server_order_id = ? WHERE id = ?",

@@ -21,11 +21,13 @@ import com.example.oylfrutossecos.ui.components.*
 @Composable
 fun AccountScreen(user: User, busy: Boolean, error: String?,
     onLogoutClick: () -> Unit, onOrdersClick: () -> Unit, onMapClick: () -> Unit,
-    onNotificationsClick: () -> Unit, unreadNotices: Int) {
+    onNotificationsClick: () -> Unit, unreadNotices: Int,
+    onEditProfile: () -> Unit = {}, notice: String? = null, onAdminSettings: () -> Unit = {}) {
     var showData by remember { mutableStateOf(false) }
     LazyColumn(Modifier.fillMaxSize().testTag("account-list"), contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { ReferenceTitle("Mi perfil") }
+        notice?.let { item { InfoBanner("Perfil actualizado", it) } }
         item {
             Column(Modifier.fillMaxWidth().padding(vertical = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -41,6 +43,8 @@ fun AccountScreen(user: User, busy: Boolean, error: String?,
         item {
             Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerLowest) {
                 Column {
+                    AccountAction("Editar perfil", Icons.Default.Edit, !busy, onEditProfile)
+                    HorizontalDivider()
                     AccountAction(if (user.role == UserRole.ADMIN) "Gestionar pedidos" else "Mis pedidos",
                         Icons.AutoMirrored.Filled.ReceiptLong, !busy, onOrdersClick)
                     HorizontalDivider()
@@ -49,6 +53,10 @@ fun AccountScreen(user: User, busy: Boolean, error: String?,
                     HorizontalDivider()
                     AccountAction("Puntos de retiro", Icons.Default.LocationOn, !busy, onMapClick)
                     HorizontalDivider()
+                    if (user.role == UserRole.ADMIN) {
+                        AccountAction("Configuración administrativa", Icons.Default.Settings, !busy, onAdminSettings)
+                        HorizontalDivider()
+                    }
                     AccountAction(if (busy) "Cerrando sesión…" else "Cerrar sesión", Icons.Default.Logout, !busy, onLogoutClick)
                 }
             }

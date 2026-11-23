@@ -42,9 +42,11 @@ class CatalogViewModel(private val repository: ProductRepository) : ViewModel() 
                 mutableState.update { it.copy(products = products, loading = false) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
-                mutableState.update { it.copy(loading = false,
-                    error = "No se pudo cargar el catálogo. Intenta nuevamente.") }
+            } catch (e: Exception) {
+                val cached = repository.cachedProducts()
+                mutableState.update { it.copy(products = cached, loading = false,
+                    error = com.example.oylfrutossecos.data.repository.restError(e) +
+                        " Mostrando la última copia REST guardada; precios y stock pueden haber cambiado.") }
             }
         }
     }
@@ -60,14 +62,14 @@ class CatalogViewModel(private val repository: ProductRepository) : ViewModel() 
         viewModelScope.launch {
             try {
                 repository.saveProduct(id, draft)
-                val products = repository.getProducts()
+                val products = repository.cachedProducts()
                 mutableState.update { it.copy(products = products, error = null, loading = false, savingProduct = false) }
                 onResult(null)
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 mutableState.update { it.copy(savingProduct = false) }
-                onResult("No se pudo guardar el producto. Intenta de nuevo.")
+                onResult(com.example.oylfrutossecos.data.repository.restError(e))
             } finally {
                 mutableState.update { it.copy(savingProduct = false) }
             }

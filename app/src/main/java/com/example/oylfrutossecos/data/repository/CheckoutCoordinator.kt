@@ -29,7 +29,7 @@ class CheckoutCoordinator(private val cache: CheckoutStore, private val api: Oyl
             }
             val request = ApiOrderRequest(
                 UUID.randomUUID().toString(), user.alias,
-                current.map { ApiOrderItemRequest(it.product.id, it.quantity) },
+                current.map { ApiOrderItemRequest(it.product.remoteId ?: it.product.id, it.quantity) },
                 delivery.name, user.phone,
                 if (delivery == DeliveryMethod.DELIVERY) user.address else "Retiro en tienda"
             )

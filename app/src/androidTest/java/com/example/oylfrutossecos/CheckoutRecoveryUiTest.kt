@@ -20,28 +20,32 @@ class CheckoutRecoveryUiTest {
         Product(1, "Almendras", "Frutos secos", "Bolsa", 9000, 250, 0, "nut"), 1)),
         loading = false, pending = pending)
 
-    @Test fun legacyRequestIsProtectedWithoutRecoveryOrCartEditing() {
+    @Test fun legacyRequestIsProtectedAndCanOpenRecoveryWithoutCartEditing() {
+        var recovery = 0
         compose.setContent {
             OYLFrutosSecosTheme { CartScreen(state, { _, _ -> fail("Frozen cart edited") },
-                {}, {}, { fail("REST request must not become a local order") }) }
+                {}, {}, { recovery++ }) }
         }
         compose.onNodeWithText("Solicitud anterior protegida").assertIsDisplayed()
-        compose.onNodeWithText("Recuperar pedido pendiente").assertDoesNotExist()
+        compose.onNodeWithText("Recuperar pedido pendiente").performClick()
+        assertEquals(1, recovery)
         compose.onNodeWithContentDescription("Quitar").performScrollTo().assertIsNotEnabled()
         compose.onNodeWithText("+").assertIsNotEnabled()
         compose.onNodeWithText("−").assertIsNotEnabled()
         compose.onNodeWithText("Continuar al pedido").assertDoesNotExist()
     }
 
-    @Test fun pendingConfirmationCannotSubmitEvenWithoutCartItems() {
+    @Test fun pendingConfirmationRecoversPersistedDeliveryEvenWithoutCartItems() {
+        var delivery: DeliveryMethod? = null
         val user = User(7, "Cliente", "cliente", "demo@example.cl", "911111111", "Santiago", UserRole.CLIENT)
         compose.setContent {
             OYLFrutosSecosTheme { OrderConfirmationScreen(user, state.copy(items = emptyList()),
-                OrderUiState(), {}, { fail("Pending request must stay untouched") }) }
+                OrderUiState(loading = false), {}, { delivery = it }) }
         }
-        compose.onNodeWithText("Pedido no disponible").assertIsDisplayed()
+        compose.onNodeWithText("Resultado pendiente").assertIsDisplayed()
         compose.onNodeWithText("Registrar pedido").assertDoesNotExist()
-        compose.onNodeWithText("Recuperar pedido pendiente").assertDoesNotExist()
+        compose.onNodeWithText("Recuperar pedido pendiente").performClick()
+        assertEquals(DeliveryMethod.DELIVERY, delivery)
         assertEquals(pending, state.pending)
     }
 }

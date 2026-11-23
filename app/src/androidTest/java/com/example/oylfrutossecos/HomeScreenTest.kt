@@ -23,11 +23,12 @@ class HomeScreenTest {
 
     private fun render(admin: Boolean = false, cart: CartState = CartState(loading = false),
                        inventory: InventoryState = InventoryState(products = products, loading = false),
-                       orders: OrderUiState = OrderUiState(loading = false), enabled: Boolean = true) {
+                       orders: OrderUiState = OrderUiState(loading = false), enabled: Boolean = true,
+                       catalog: CatalogState = CatalogState(products = products, loading = false)) {
         compose.setContent {
             OYLFrutosSecosTheme {
                 HomeScreen(client.copy(role = if (admin) UserRole.ADMIN else UserRole.CLIENT),
-                    CatalogState(products = products, loading = false), cart, orders, inventory,
+                    catalog, cart, orders, inventory,
                     onCatalog = { selected = "catalog" }, onProduct = { selected = "product/$it" },
                     onRetry = {}, onMap = { selected = "map" }, onNotifications = { selected = "notifications" },
                     unreadNotices = 2, onCart = { selected = "cart" }, onOrders = { selected = "orders" },
@@ -72,11 +73,12 @@ class HomeScreenTest {
         click("Ver carrito", "cart")
     }
 
-    @Test fun adminCountsOnlyLocalSnapshotsAndUsesExistingLowStockThreshold() {
+    @Test fun adminCountsRemotePendingOrdersSeparatelyFromLegacyAndUsesExistingLowStockThreshold() {
         val order = OrderSummary(1, client.id, client.name, 0, OrderStatus.PENDING,
-            DeliveryMethod.PICKUP, client.phone, client.address, 1500, emptyList())
+            DeliveryMethod.PICKUP, client.phone, client.address, 1500, emptyList(), "remote-1")
         render(admin = true, orders = OrderUiState(orders = listOf(order, order.copy(id = 2,
-            status = OrderStatus.DELIVERED)), loading = false))
+            status = OrderStatus.DELIVERED, remoteOrderId = "remote-2"), order.copy(id = 3, remoteOrderId = null)),
+            loading = false, remoteFresh = true))
         compose.onNodeWithText("Resumen general").assertExists()
         compose.onNode(hasText("Productos") and hasText("4")).assertExists()
         compose.onNode(hasText("Agotados") and hasText("1")).assertExists()
@@ -90,7 +92,8 @@ class HomeScreenTest {
 
     @Test fun failedSourcesDoNotPresentZeroAsARealCountAndAllowRetry() {
         render(admin = true, inventory = InventoryState(products = products, loading = false, error = "fallo"),
-            orders = OrderUiState(loading = false, error = "fallo"))
+            orders = OrderUiState(loading = false, error = "fallo"),
+            catalog = CatalogState(products = products, loading = false, error = "fallo"))
         compose.onNode(hasText("Productos") and hasText("—")).assertExists()
         compose.onNode(hasText("Pedidos pendientes") and hasText("—")).assertExists()
         click("Reintentar inventario", "retry")

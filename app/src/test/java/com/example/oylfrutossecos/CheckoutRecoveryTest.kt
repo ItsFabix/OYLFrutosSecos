@@ -46,7 +46,7 @@ class CheckoutRecoveryTest {
         override fun refreshProductCache(products: List<ApiProduct>) = Unit
     }
 
-    private inner class Server(private val store: MemoryStore) : OylRestService {
+    private inner class Server(private val store: MemoryStore) : StubOylRestService() {
         val bodies = mutableListOf<String>()
         val orders = mutableMapOf<String, ApiOrderResponse>()
         var stock = 1

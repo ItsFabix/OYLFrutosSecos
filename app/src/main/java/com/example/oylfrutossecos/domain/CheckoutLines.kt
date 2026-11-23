@@ -6,7 +6,7 @@ import com.example.oylfrutossecos.data.remote.ApiOrderItemRequest
 /** Price is mutable; the identity of purchased lines is product ID + quantity. */
 object CheckoutLines {
     fun fingerprint(items: List<CartItem>): String =
-        items.sortedBy { it.product.id }.joinToString(";") { "${it.product.id}:${it.quantity}" }
+        fingerprintOfRequest(items.map { ApiOrderItemRequest(it.product.remoteId ?: it.product.id, it.quantity) })
 
     fun fingerprintOfRequest(items: List<ApiOrderItemRequest>): String =
         items.sortedBy { it.productId }.joinToString(";") { "${it.productId}:${it.quantity}" }

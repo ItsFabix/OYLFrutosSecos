@@ -25,8 +25,11 @@ fun CartScreen(state: CartState, onChange: (Long, Int) -> Unit,
         if (state.loading) item { CircularProgressIndicator() }
         if (!state.loading && state.pending != null) item {
             InfoBanner("Solicitud anterior protegida",
-                "Esta cuenta tiene una solicitud anterior pendiente de revisión. El carrito permanece protegido para evitar pedidos duplicados. " +
-                    "La solicitud se conserva sin cambios. Referencia: ${state.pending.requestId}", error = true)
+                "El resultado del pedido REST está pendiente. El carrito permanece protegido para evitar duplicados. " +
+                    "Recupera la misma solicitud. Referencia: ${state.pending.requestId}", error = true)
+            Button(onClick = onCheckout, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+                Text("Recuperar pedido pendiente")
+            }
         }
         if (!state.loading && state.items.isEmpty() && state.pending == null) {
             item { EmptyState("Tu carrito está vacío", "Elige tus frutos secos favoritos y vuelve aquí para confirmar.", Icons.Default.ShoppingCart) }

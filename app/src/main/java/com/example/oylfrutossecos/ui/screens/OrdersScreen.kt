@@ -23,7 +23,7 @@ import java.util.Locale
 
 @Composable
 fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
-    onRetry: () -> Unit, onAdvance: (Long) -> Unit) {
+    onRetry: () -> Unit, onAdvance: (OrderSummary) -> Unit) {
     var filter by rememberSaveable { mutableStateOf("ALL") }
     val shown = state.orders.filter { filter == "ALL" || it.status.name == filter }
     LazyColumn(Modifier.fillMaxSize().testTag("orders-list"), contentPadding = PaddingValues(12.dp),
@@ -50,14 +50,15 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
         if (!state.loading && shown.isEmpty()) item {
             EmptyState("Sin pedidos por aquí", "Los pedidos que coincidan con este estado aparecerán aquí.")
         }
-        items(shown, key = { it.id }) { order ->
+        items(shown, key = { it.remoteOrderId ?: "local-${it.id}" }) { order ->
             var expanded by rememberSaveable(order.id) { mutableStateOf(false) }
             Surface(shape = MaterialTheme.shapes.small, color = MaterialTheme.colorScheme.surfaceContainerLowest) {
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Icon(Icons.AutoMirrored.Filled.ReceiptLong, null, Modifier.size(26.dp), tint = MaterialTheme.colorScheme.primary)
                         Column(Modifier.weight(1f)) {
-                            Text("Pedido #${order.id}", style = MaterialTheme.typography.labelLarge)
+                            Text(order.remoteOrderId?.let { "Pedido REST #${it.take(8)}" } ?: "Pedido local #${order.id}",
+                                style = MaterialTheme.typography.labelLarge)
                             Text(SimpleDateFormat("dd/MM/yyyy", Locale("es", "CL")).format(Date(order.createdAt)),
                                 style = MaterialTheme.typography.labelSmall)
                             if (admin) Text(order.customerName, style = MaterialTheme.typography.bodySmall)
@@ -69,7 +70,7 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
                     }
                     TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Ocultar detalle" else "Ver detalle") }
                     if (expanded) {
-                        Text(if (order.remoteOrderId == null) "Pedido guardado en este dispositivo" else "Pedido anterior #${order.remoteOrderId} · solo consulta",
+                        Text(if (order.remoteOrderId == null) "Histórico local · no registrado en Spring Boot" else "Pedido REST #${order.remoteOrderId}",
                             style = MaterialTheme.typography.bodySmall)
                         Text(order.delivery.displayName, style = MaterialTheme.typography.bodySmall)
                         if (admin) {
@@ -79,8 +80,9 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
                         order.lines.forEach { line -> Text("${line.quantity} × ${line.name} · ${priceInPesos(line.subtotalClp)}",
                             style = MaterialTheme.typography.bodySmall) }
                     }
-                    if (admin && order.remoteOrderId == null && order.status.next() != null) {
-                        FilledTonalButton(onClick = { onAdvance(order.id) }, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
+                    if (admin && order.status.next() != null) {
+                        FilledTonalButton(onClick = { onAdvance(order) },
+                            enabled = !state.busy && !state.loading && (order.remoteOrderId == null || state.remoteFresh), modifier = Modifier.fillMaxWidth()) {
                             Text("Marcar como ${order.status.next()?.displayName}")
                         }
                     }

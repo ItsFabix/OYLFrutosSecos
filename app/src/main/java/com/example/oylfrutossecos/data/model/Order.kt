@@ -1,6 +1,6 @@
 package com.example.oylfrutossecos.data.model
 
-// Pedidos LOCALES de demostración; no son ventas procesadas en el servidor.
+// Históricos locales y copias de pedidos REST, diferenciados por remoteOrderId.
 enum class OrderStatus(val displayName: String) {
     PENDING("Pendiente de validación"),
     CONFIRMED("Confirmado"),

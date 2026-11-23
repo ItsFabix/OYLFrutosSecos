@@ -163,6 +163,13 @@ class AuthViewModel internal constructor(
 
     fun consumeRegistration() { registerState = RegisterState() }
 
+    fun acceptUpdatedProfile(updated: User) {
+        val current = user ?: return
+        check(updated.id == current.id && updated.alias == current.alias &&
+            updated.role == current.role && updated.email == current.email) { "El perfil no corresponde a la sesión activa." }
+        user = updated
+    }
+
     fun clearForms() {
         if (!loginState.busy && !registerState.busy) {
             loginState = LoginState()

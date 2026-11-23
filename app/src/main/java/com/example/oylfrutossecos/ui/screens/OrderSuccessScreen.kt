@@ -15,27 +15,29 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun OrderSuccessScreen(orderId: Long?, onOrders: () -> Unit, onHome: () -> Unit, order: OrderSummary? = null) {
+fun OrderSuccessScreen(orderId: Long?, onOrders: () -> Unit, onHome: () -> Unit, order: OrderSummary? = null,
+    serverOrderId: String? = null) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Spacer(Modifier.height(24.dp))
         OrderParcelIllustration()
         Text("Pedido registrado", style = MaterialTheme.typography.headlineSmall)
-        Text("Tu solicitud está pendiente de validación.", style = MaterialTheme.typography.bodyMedium)
+        Text("El servidor confirmó el registro de tu pedido.", style = MaterialTheme.typography.bodyMedium)
         Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shape = MaterialTheme.shapes.medium) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SuccessLine("N.º de pedido", orderId?.let { "#$it" } ?: "Referencia no disponible")
+                serverOrderId?.let { Text("Referencia REST: $it", style = MaterialTheme.typography.bodySmall) }
                 order?.let {
                     SuccessLine("Fecha", SimpleDateFormat("dd/MM/yyyy · HH:mm", Locale("es", "CL")).format(Date(it.createdAt)))
                     SuccessLine("Total", priceInPesos(it.totalClp))
                     SuccessLine("Modalidad", it.delivery.displayName)
                 }
-                OrderStatusBadge(OrderStatus.PENDING)
+                order?.let { OrderStatusBadge(it.status) }
             }
         }
         Button(onClick = onOrders, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Ver mis pedidos") }
         OutlinedButton(onClick = onHome, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Volver al inicio") }
-        Text("La solicitud se guarda en este dispositivo. No se realizan pagos ni envíos reales. El inventario se gestiona por separado.",
+        Text("El pedido está registrado en Spring Boot y su copia se conserva en este dispositivo. El stock ya fue descontado. No se realizan pagos ni envíos reales.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

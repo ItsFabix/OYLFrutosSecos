@@ -22,7 +22,8 @@ public class OrderService {
     public record OrderLine(long productId, String productName, int quantity, int unitPriceClp) {}
     public record OrderResponse(String id, String requestId, String customerAlias,
                                 String status, long totalClp, List<OrderLine> items,
-                                String delivery, String contactPhone, String contactAddress) {}
+                                String delivery, String contactPhone, String contactAddress,
+                                long createdAt) {}
     private record LockedProduct(long id, String name, int price, int stock) {}
 
     /** Only emitted while holding the request's product lock, before any order can commit. */
@@ -55,9 +56,28 @@ public class OrderService {
                 || phone.length() > 80 || address.length() > 255) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Datos de entrega inválidos");
         }
+        // H2 MERGE bloquea una sola fila por requestId hasta commit/rollback.
+        // La unicidad no depende de que los reintentos compartan productos.
+        jdbc.update("MERGE INTO checkout_requests(request_id) KEY(request_id) VALUES (?)", requestId);
         var found = jdbc.query("SELECT id FROM demo_orders WHERE request_id = ?",
                 (rs, i) -> rs.getString(1), requestId);
-        if (!found.isEmpty()) return byId(found.get(0));
+        if (!found.isEmpty()) {
+            var previous = byId(found.get(0));
+            var previousItems = previous.items().stream()
+                    .map(line -> new LineRequest(line.productId(), line.quantity()))
+                    .sorted(java.util.Comparator.comparingLong(LineRequest::productId)).toList();
+            if (req.items().stream().anyMatch(java.util.Objects::isNull)
+                    || !previous.customerAlias().equals(req.customerAlias().trim())
+                    || !previous.delivery().equals(delivery)
+                    || !previous.contactPhone().equals(phone)
+                    || !previous.contactAddress().equals(address)
+                    || !previousItems.equals(req.items().stream()
+                        .sorted(java.util.Comparator.comparingLong(LineRequest::productId)).toList())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "requestId ya utilizado para una solicitud diferente");
+            }
+            return previous;
+        }
 
         var unique = new HashSet<Long>();
         for (var item : req.items()) {
@@ -124,21 +144,35 @@ public class OrderService {
                 throw new StockRejectedException(requestId,
                         "El stock cambió; vuelve a intentar");
             }
+            int afterStock = jdbc.queryForObject("SELECT stock FROM products WHERE id = ?",
+                    Integer.class, line.productId());
+            jdbc.update("""
+                    INSERT INTO inventory_movements(product_id, change_qty, before_stock,
+                        after_stock, note, created_at) VALUES (?, ?, ?, ?, ?, ?)
+                    """, line.productId(), -line.quantity(), afterStock + line.quantity(),
+                    afterStock, "Pedido REST " + orderId, System.currentTimeMillis());
         }
         return byId(orderId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OrderResponse> listAll() {
+        return jdbc.query("SELECT id FROM demo_orders ORDER BY created_at DESC, id DESC",
+                (rs, i) -> rs.getString(1)).stream().map(this::byId).toList();
     }
 
     @Transactional(readOnly = true)
     public OrderResponse byId(String id) {
         var rows = jdbc.query("""
                 SELECT id, request_id, customer_alias, status, total_clp, delivery,
-                       contact_phone, contact_address
+                       contact_phone, contact_address, created_at
                 FROM demo_orders WHERE id = ?
                 """, (rs, i) -> new String[] {
                     rs.getString("id"), rs.getString("request_id"),
                     rs.getString("customer_alias"), rs.getString("status"),
                     rs.getString("total_clp"), rs.getString("delivery"),
-                    rs.getString("contact_phone"), rs.getString("contact_address") }, id);
+                    rs.getString("contact_phone"), rs.getString("contact_address"),
+                    rs.getString("created_at") }, id);
         if (rows.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido no encontrado");
         }
@@ -149,6 +183,6 @@ public class OrderService {
                 """, (rs, i) -> new OrderLine(
                     rs.getLong(1), rs.getString(2), rs.getInt(3), rs.getInt(4)), id);
         return new OrderResponse(row[0], row[1], row[2], row[3],
-                Long.parseLong(row[4]), lines, row[5], row[6], row[7]);
+                Long.parseLong(row[4]), lines, row[5], row[6], row[7], Long.parseLong(row[8]));
     }
 }
