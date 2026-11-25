@@ -2,9 +2,14 @@
 
 # OYL Frutos Secos
 
-Proyecto académico de **DSY1105 — Desarrollo de Aplicaciones Móviles**, Evaluación Parcial 4 (6 %), entrega Control 3. Repositorio: [ItsFabix/OYLFrutosSecos](https://github.com/ItsFabix/OYLFrutosSecos). Rama de trabajo: `control3-integracion`.
+Proyecto académico de **DSY1105 — Desarrollo de Aplicaciones Móviles**, Evaluación Parcial 4 (6 %), entrega Control 3. Repositorio: [ItsFabix/OYLFrutosSecos](https://github.com/ItsFabix/OYLFrutosSecos). Rama de trabajo: `control3-tres-microservicios` (la original `control3-integracion` se mantiene intacta).
 
 OYL permite consultar frutos secos, semillas y deshidratados, administrar un carrito, registrar pedidos en Spring Boot y seguir sus estados. Conserva el diseño verde y crema, las ilustraciones propias y la autenticación local. El administrador gestiona productos, existencias y pedidos con autorización HTTP.
+
+## Integrantes y entrega
+
+- Integrante(s), sección y docente: **pendiente de completar con datos reales antes de entregar**. No inventar integrantes ni participación.
+- Nueva versión: generar APK firmado desde esta rama. El APK ya versionado pertenece a la versión anterior y no prueba los cambios de microservicios.
 
 ## Funcionalidades
 
@@ -20,7 +25,7 @@ OYL permite consultar frutos secos, semillas y deshidratados, administrar un car
 
 Android: Kotlin 2.0.21, Jetpack Compose, Material 3, Navigation Compose, ViewModel, StateFlow, coroutines, SQLiteOpenHelper y Retrofit 2.11.0 con Gson. Mapa osmdroid 6.1.20/OpenStreetMap y Google Code Scanner 16.1.0. compileSdk/targetSdk 36; minSdk 26; Android Gradle Plugin 8.12.3 y Gradle Wrapper 8.13.
 
-Backend: Java 17, Spring Boot 3.5.7, Spring Web, Spring JDBC, transacciones y H2. Hay **un único backend Spring Boot**, con controladores y servicios internos. No son microservicios independientes. La exigencia de múltiples servicios desplegables debe aclararse con la pauta; esta entrega no acredita esa arquitectura.
+Backend: Java 17, Spring Boot 3.5.7, Spring Web, Spring JDBC, transacciones y H2. Hay **tres microservicios independientes**: ventas/inventario (módulo `:server`, puerto 8080), puntos de retiro (`:pickup-service`, 8081) y eventos de pedidos (`:notification-service`, 8082). Cada uno tiene JAR, puerto y base de datos propios. Las llamadas cruzadas son HTTP; el servidor 8080 actúa como fachada para Android. El checkout sigue transaccional en `:server` y los avisos se publican mediante una outbox persistente. Ver [MICROSERVICIOS_CONTROL3.md](MICROSERVICIOS_CONTROL3.md).
 
 ## Pantallas reales
 
@@ -59,6 +64,9 @@ Base local para el PC: `http://127.0.0.1:8080/`. Para el emulador: `http://10.0.
 | GET | `/api/products` | Catálogo y existencias actuales. | Público |
 | POST | `/api/orders` | Registrar pedido; validar y descontar stock transaccionalmente con requestId idempotente. | Público |
 | GET | `/api/orders/{id}` | Consultar pedido y estado por UUID. | Público por UUID |
+| GET | `/api/pickup-points` | Puntos de retiro reales desde `:pickup-service` (ficticios para la demo). | Público |
+| GET | `/api/orders/{id}/notifications` | Eventos del pedido desde `:notification-service`. | Público por UUID |
+| POST/PUT/DELETE | `/api/admin/pickup-points/{id}` | CRUD del servicio de retiro delegado vía HTTP. | ADMIN |
 | GET | `/api/admin/orders` | Listar todos los pedidos del servidor. | ADMIN |
 | POST | `/api/admin/orders/{id}/advance` | Avanzar Pendiente, Confirmado, Preparado y Entregado. | ADMIN |
 | POST | `/api/admin/products` | Crear producto y su movimiento de stock inicial. | ADMIN |
@@ -133,7 +141,7 @@ Debe responder salud `ok` y un catálogo con ocho productos en una base vacía. 
 
 Resultados disponibles: 126 pruebas unitarias Android aprobadas, 16 pruebas de UI/navegación de la última corrección administrativa y una sonda Retrofit real GET que confirmó protección HTTP 403. La actualización del mapa tiene una ejecución previa de 11 pruebas y la integración REST/SQLite una previa de 25; son ejecuciones de alcance distinto y se solapan, por lo que no se suman como pruebas únicas. Spring Boot dispone de 15 pruebas aprobadas sobre SQL, stock, idempotencia y protección administrativa.
 
-**No existe una medición acreditada del 80 % de cobertura Android.** Cantidad de pruebas aprobadas no equivale a porcentaje de cobertura. Los reportes HTML/JUnit y logs se entregan como evidencias de ejecución, con su alcance identificado.
+**No existe todavía una medición acreditada del 80 % de cobertura Android para esta rama.** Para obtenerla ejecutar `.\\gradlew.bat :app:jacocoDebugLogicReport` y abrir `app/build/reports/jacoco/jacocoDebugLogicReport/html/index.html`. El informe cuenta clases de lógica (domain, data/repository, ui/viewmodel); conservar el reporte con la evidencia. Cantidad de pruebas aprobadas no equivale a porcentaje de cobertura. Los reportes HTML/JUnit y logs se entregan como evidencias de ejecución, con su alcance identificado.
 
 ```powershell
 .\gradlew.bat :app:testDebugUnitTest --console=plain
@@ -146,7 +154,7 @@ Ejecutar instrumentación en un AVD dedicado: la instalación/reinstalación de 
 
 ## APK release y firma
 
-La entrega incluye una APK release firmada existente, copiada sin reconstruirla. `apksigner verify --verbose app-release.apk` verifica su firma; el SHA-256 permite comprobar que la copia coincide con el original. `app/build.gradle.kts` no contiene signingConfig con credenciales: la firma se realizó mediante el asistente de Android Studio y una llave privada externa. Para reproducir exactamente esa identidad de firma se requiere el keystore y alias originales, custodiados fuera del repositorio. No se incluyen llaves ni credenciales de firma.
+El repositorio conserva una APK release firmada **de la versión anterior**. Esta versión de microservicios requiere **recompilar Android y firmar nuevamente** antes de declarar un APK actualizado. La firma antigua no demuestra las nuevas pantallas ni consultas REST. La entrega anterior incluía una APK release firmada existente, copiada sin reconstruirla. `apksigner verify --verbose app-release.apk` verifica su firma; el SHA-256 permite comprobar que la copia coincide con el original. `app/build.gradle.kts` no contiene signingConfig con credenciales: la firma se realizó mediante el asistente de Android Studio y una llave privada externa. Para reproducir exactamente esa identidad de firma se requiere el keystore y alias originales, custodiados fuera del repositorio. No se incluyen llaves ni credenciales de firma.
 
 Para instalar la release, usar un AVD de pruebas sin datos importantes. Si existe una instalación debug con otra firma, Android puede rechazar la actualización. No desinstalar ni borrar sus datos para resolverlo: usar otro AVD o un dispositivo de prueba apropiado. No reemplazar el APK ya firmado por una compilación debug.
 
