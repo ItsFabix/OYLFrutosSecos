@@ -17,6 +17,9 @@ import androidx.compose.ui.unit.dp
 import com.example.oylfrutossecos.data.model.*
 import com.example.oylfrutossecos.ui.components.*
 import com.example.oylfrutossecos.ui.viewmodel.OrderUiState
+import com.example.oylfrutossecos.data.remote.OylRestClient
+import com.example.oylfrutossecos.data.remote.ApiOrderEvent
+import kotlinx.coroutines.CancellationException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -79,6 +82,9 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
                         }
                         order.lines.forEach { line -> Text("${line.quantity} × ${line.name} · ${priceInPesos(line.subtotalClp)}",
                             style = MaterialTheme.typography.bodySmall) }
+                        order.remoteOrderId?.let { remoteId ->
+                            RemoteOrderEvents(remoteId, order.status)
+                        }
                     }
                     if (admin && order.status.next() != null) {
                         FilledTonalButton(onClick = { onAdvance(order) },
@@ -88,6 +94,43 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
                     }
                 }
             }
+        }
+    }
+}
+
+/** Evidencia de integración Android -> ventas :8080 -> notificaciones :8082. */
+@Composable
+private fun RemoteOrderEvents(orderId: String, status: OrderStatus) {
+    var error by remember(orderId, status) { mutableStateOf(false) }
+    val events by produceState<List<ApiOrderEvent>?>(initialValue = null, orderId, status) {
+        value = try {
+            OylRestClient.service.orderEvents(orderId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            error = true
+            emptyList()
+        }
+    }
+    HorizontalDivider()
+    Text("Eventos del microservicio", style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.primary)
+    when {
+        events == null -> LinearProgressIndicator(Modifier.fillMaxWidth())
+        error -> Text("El servicio de notificaciones no está disponible.",
+            style = MaterialTheme.typography.bodySmall)
+        events!!.isEmpty() -> Text("Aún no hay eventos remotos para este pedido.",
+            style = MaterialTheme.typography.bodySmall)
+        else -> events!!.forEach { event ->
+            val state = when (event.status) {
+                "PENDING" -> "Pendiente"
+                "CONFIRMED" -> "Confirmado"
+                "PREPARED" -> "Preparado"
+                "DELIVERED" -> "Entregado"
+                else -> event.status
+            }
+            Text("• " + (if (event.kind == "ORDER_CREATED") "Pedido creado" else "Cambio de estado")
+                + ": " + state, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
