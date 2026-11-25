@@ -12,9 +12,9 @@ Los tres son aplicaciones Spring Boot distintas, cada una con clase main, JAR, p
 
 Se preserva la transacción de stock/pedido en :server para evitar sobreventa. Cuando se crea un pedido o cambia de estado, la misma transacción escribe un evento en integration_outbox. Un publicador periódico lo entrega al servicio de notificaciones en el puerto 8082. Si ese servicio está caído, la compra se confirma igualmente y el evento sigue pendiente para su reintento. El destino usa eventId único para evitar duplicaciones.
 
-Android consulta puntos de retiro mediante Retrofit en la ruta /api/pickup-points de :8080, que se comunica por HTTP con el servicio :8081. Si no está disponible, la app conserva sus puntos ficticios de respaldo. Las compras Android generan eventos en el microservicio :8082 mediante :server, y esos eventos pueden consultarse por el UUID del pedido.
+Android consulta puntos de retiro mediante Retrofit en la ruta /api/pickup-points de :8080, que se comunica por HTTP con el servicio :8081. Si no está disponible, la app conserva sus puntos ficticios de respaldo. Las compras Android generan eventos en el microservicio :8082 mediante :server, y esos eventos se muestran en el detalle de un pedido REST mediante Retrofit (ruta /api/orders/{id}/notifications).
 
-Limitación visible: la pantalla de Notificaciones Android aún muestra sus avisos locales de SQLite; el historial del servicio remoto puede consultarse por API, pero no aparece mezclado en esa pantalla. No afirmar que existe sincronización visual de avisos si no se desarrolla.
+La pantalla de Notificaciones Android conserva sus avisos locales en SQLite, mientras que la pantalla Mis pedidos muestra también el historial de eventos remotos al expandir un pedido REST. Son dos vistas diferentes; no afirmar que el historial remoto se sincroniza con todas las notificaciones locales.
 
 ## Preparación y arranque en Windows
 
@@ -40,6 +40,7 @@ También se pueden arrancar en tres PowerShell independientes con .\gradlew.bat 
 - http://127.0.0.1:8082/api/notifications/health — servicio de eventos
 - http://127.0.0.1:8080/api/pickup-points — la misma respuesta delegada por HTTP desde ventas
 - http://127.0.0.1:8080/api/products — catálogo
+- Verificar los cuatro endpoints automáticamente con scripts/comprobar-microservicios.ps1
 - Android > Mapa — debe mostrar los puntos ofrecidos por la API.
 - Android > Carrito > Confirmar pedido — se descuenta el stock en ventas.
 - http://127.0.0.1:8080/api/orders/UUID_REAL_DEL_PEDIDO/notifications — debe listar el evento remoto después de publicarse.
@@ -59,7 +60,7 @@ En producción se necesitarían autenticación por usuarios, HTTPS, autenticaci�
 
 ## Pruebas automatizadas y cobertura
 
-Ejecutar en la raíz: .\gradlew.bat :server:test :pickup-service:test :notification-service:test; después .\gradlew.bat :app:testDebugUnitTest. Pruebas instrumentadas con emulador activo: .\gradlew.bat :app:connectedDebugAndroidTest. Los reportes HTML se generan en las carpetas build/reports/tests respectivas.
+Ejecutar en la raíz: .\gradlew.bat :server:test :pickup-service:test :notification-service:test; después .\gradlew.bat :app:testDebugUnitTest. Pruebas instrumentadas con emulador activo: .\gradlew.bat :app:connectedDebugAndroidTest. Los reportes HTML se generan en las carpetas build/reports/tests respectivas. Para la cobertura de lógica Android ejecutar .\\gradlew.bat :app:jacocoDebugLogicReport y abrir app/build/reports/jacoco/jacocoDebugLogicReport/html/index.html.
 
 La pauta del Control 3 exige **80 % de cobertura de código lógico Android**. Los conteos de tests pasados no demuestran ese porcentaje; hay que generar y documentar una medición de cobertura, o declararlo explícitamente como pendiente.
 

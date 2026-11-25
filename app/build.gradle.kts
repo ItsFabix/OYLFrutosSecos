@@ -1,4 +1,5 @@
 plugins {
+    jacoco
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -80,4 +81,31 @@ dependencies {
 // Mapa nativo OpenStreetMap.
 dependencies {
     implementation("org.osmdroid:osmdroid-android:6.1.20")
+}
+
+ 
+// Cobertura de las clases de lógica (no de UI Compose generada).
+// Ejecutar :app:jacocoDebugLogicReport después de testDebugUnitTest.
+jacoco {
+    toolVersion = "0.8.13"
+}
+tasks.register<org.gradle.testing.jacoco.tasks.JacocoReport>("jacocoDebugLogicReport") {
+    dependsOn("testDebugUnitTest")
+    executionData.setFrom(fileTree(layout.buildDirectory.dir("jacoco")) {
+        include("testDebugUnitTest.exec")
+    })
+    val logicalPackages = listOf("**/domain/**", "**/data/repository/**", "**/ui/viewmodel/**")
+    classDirectories.setFrom(files(
+        fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
+            include(logicalPackages)
+        },
+        fileTree(layout.buildDirectory.dir("intermediates/javac/debug/compileDebugJavaWithJavac/classes")) {
+            include(logicalPackages)
+        }
+    ))
+    sourceDirectories.setFrom(files("src/main/java"))
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
 }
