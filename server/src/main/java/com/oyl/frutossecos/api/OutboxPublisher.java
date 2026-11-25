@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClientException;
 
 /**
@@ -22,7 +23,10 @@ public class OutboxPublisher {
             @Value("${oyl.notifications.url:http://127.0.0.1:8082}") String url,
             @Value("${OYL_SERVICE_TOKEN:}") String token) {
         this.jdbc = jdbc;
-        this.client = RestClient.builder().baseUrl(url).build();
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(1500);
+        requestFactory.setReadTimeout(2500);
+        this.client = RestClient.builder().baseUrl(url).requestFactory(requestFactory).build();
         this.token = token;
     }
 

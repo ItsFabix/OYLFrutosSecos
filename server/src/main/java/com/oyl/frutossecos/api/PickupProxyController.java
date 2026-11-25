@@ -6,6 +6,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestClient;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
@@ -24,7 +25,10 @@ public class PickupProxyController {
             @Value("${oyl.pickup.url:http://127.0.0.1:8081}") String url,
             @Value("${OYL_SERVICE_TOKEN:}") String serviceToken,
             AdminController admin) {
-        this.client = RestClient.builder().baseUrl(url).build();
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(1500);
+        requestFactory.setReadTimeout(2500);
+        this.client = RestClient.builder().baseUrl(url).requestFactory(requestFactory).build();
         this.serviceToken = serviceToken;
         this.admin = admin;
     }
