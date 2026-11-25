@@ -40,8 +40,8 @@ public class NotificationController {
         if (event == null || event.eventId() == null ||
                 !event.eventId().matches("[A-Za-z0-9:_-]{4,120}") ||
                 event.orderId() == null || !event.orderId().matches("[a-fA-F0-9-]{36}") ||
-                !List.of("ORDER_CREATED", "ORDER_STATUS").contains(event.kind()) ||
-                !List.of("PENDING", "CONFIRMED", "PREPARED", "DELIVERED").contains(event.status()) ||
+                (event.kind() == null || !List.of("ORDER_CREATED", "ORDER_STATUS").contains(event.kind())) ||
+                (event.status() == null || !List.of("PENDING", "CONFIRMED", "PREPARED", "DELIVERED").contains(event.status())) ||
                 event.createdAt() == null || event.createdAt() <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Evento inválido");
         }

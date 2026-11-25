@@ -60,6 +60,9 @@ interface OylRestService {
     @GET("api/health")
     suspend fun health(): ApiHealth
 
+    @GET("api/pickup-points")
+    suspend fun pickupPoints(): List<com.example.oylfrutossecos.data.model.PickupPoint>
+
     @GET("api/products")
     suspend fun products(): List<ApiProduct>
 

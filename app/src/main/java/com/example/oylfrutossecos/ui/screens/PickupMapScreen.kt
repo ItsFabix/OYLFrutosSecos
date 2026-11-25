@@ -41,9 +41,9 @@ import kotlinx.coroutines.flow.first
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
 fun PickupMapScreen(weatherState: PickupWeatherState = PickupWeatherState(),
-    onWeatherPoint: (PickupPoint) -> Unit = {}, onRetryWeather: () -> Unit = {}, onBack: () -> Unit) {
+    onWeatherPoint: (PickupPoint) -> Unit = {}, onRetryWeather: () -> Unit = {}, onBack: () -> Unit,
+    points: List<PickupPoint> = DemoPickupPoints.all) {
     val context = LocalContext.current
-    val points = DemoPickupPoints.all
     var query by remember { mutableStateOf("") }
     val visiblePoints = points.filter { it.title.contains(query, true) || it.reference.contains(query, true) }
     // Every new visit starts in overview; weather never owns the selection or camera.
@@ -118,7 +118,7 @@ fun PickupMapScreen(weatherState: PickupWeatherState = PickupWeatherState(),
         }
     }
 
-    LaunchedEffect(selectedId, mapView, query, markers) {
+    LaunchedEffect(selectedId, mapView, query, markers, points) {
         mapView.overlays.clear()
         visiblePoints.forEach { item ->
             mapView.overlays.add(Marker(mapView).apply {
@@ -136,7 +136,7 @@ fun PickupMapScreen(weatherState: PickupWeatherState = PickupWeatherState(),
 
     // Fit once per explicit camera request, after native layout. Neither weather updates,
     // recompositions nor later card-size changes reset a camera the user has moved.
-    LaunchedEffect(mapView, selectedId, frameRequest) {
+    LaunchedEffect(mapView, selectedId, frameRequest, points) {
         // AndroidView may first receive an intermediate size before the information card
         // is measured. Wait for two layout frames with the same positive viewport.
         var measured: IntSize
