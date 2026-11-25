@@ -22,11 +22,11 @@ fun OrderSuccessScreen(orderId: Long?, onOrders: () -> Unit, onHome: () -> Unit,
         Spacer(Modifier.height(24.dp))
         OrderParcelIllustration()
         Text("Pedido registrado", style = MaterialTheme.typography.headlineSmall)
-        Text("El servidor confirmó el registro de tu pedido.", style = MaterialTheme.typography.bodyMedium)
+        Text("Hemos recibido tu pedido correctamente.", style = MaterialTheme.typography.bodyMedium)
         Surface(color = MaterialTheme.colorScheme.surfaceContainerLowest, shape = MaterialTheme.shapes.medium) {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 SuccessLine("N.º de pedido", orderId?.let { "#$it" } ?: "Referencia no disponible")
-                serverOrderId?.let { Text("Referencia REST: $it", style = MaterialTheme.typography.bodySmall) }
+                if (orderId == null) serverOrderId?.let { Text("Referencia: ${it.take(8)}", style = MaterialTheme.typography.bodySmall) }
                 order?.let {
                     SuccessLine("Fecha", SimpleDateFormat("dd/MM/yyyy · HH:mm", Locale("es", "CL")).format(Date(it.createdAt)))
                     SuccessLine("Total", priceInPesos(it.totalClp))
@@ -37,7 +37,7 @@ fun OrderSuccessScreen(orderId: Long?, onOrders: () -> Unit, onHome: () -> Unit,
         }
         Button(onClick = onOrders, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Ver mis pedidos") }
         OutlinedButton(onClick = onHome, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Volver al inicio") }
-        Text("El pedido está registrado en Spring Boot y su copia se conserva en este dispositivo. El stock ya fue descontado. No se realizan pagos ni envíos reales.",
+        Text("Puedes consultar el estado en Mis pedidos. Esta versión académica no realiza cobros, despachos ni reservas de retiro reales.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }

@@ -8,6 +8,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.oylfrutossecos.ui.viewmodel.RemoteCatalogState
+import com.example.oylfrutossecos.ui.components.priceInPesos
+import com.example.oylfrutossecos.ui.components.storeMessage
+import com.example.oylfrutossecos.domain.StorePresentation
 
 @Composable
 fun RemoteCatalogScreen(
@@ -25,37 +28,33 @@ fun RemoteCatalogScreen(
     ) {
         item {
             TextButton(onClick = onBack) { Text("Volver") }
-            Text("Conexión con el servidor", style = MaterialTheme.typography.headlineMedium)
+            Text("Diagnóstico de conexión", style = MaterialTheme.typography.headlineMedium)
             Text(
-                "Los productos y los pedidos " +
-                    "de esta pantalla se consultan directamente en el servidor.",
+                "Herramienta de evaluación académica. Las solicitudes de esta pantalla están separadas del carrito y del historial de la tienda.",
                 style = MaterialTheme.typography.bodySmall
             )
             Spacer(Modifier.height(10.dp))
             OutlinedButton(
                 onClick = onRefresh,
                 enabled = !state.loading && !state.creatingOrder
-            ) { Text("Consultar servidor") }
+            ) { Text("Actualizar catálogo") }
         }
         if (state.loading) {
             item { CircularProgressIndicator() }
         } else if (state.error != null) {
             item {
-                Text(state.error, color = MaterialTheme.colorScheme.error)
-                Text("Comprueba que el servidor esté disponible " +
-                    "y vuelve a intentarlo.")
+                Text(storeMessage(state.error), color = MaterialTheme.colorScheme.error)
+                Text("Revisa tu conexión y vuelve a intentarlo.")
             }
         } else if (state.health != null) {
             item {
                 Card {
                     Column(Modifier.fillMaxWidth().padding(16.dp)) {
                         Text("Conexión establecida", style = MaterialTheme.typography.titleLarge)
-                        Text("Servicio: ${state.health.service}")
-                        Text("Estado: ${state.health.status}")
-                        Text("Modo: ${state.health.mode}")
+                        Text("Catálogo disponible")
                     }
                 }
-                Text("${state.products.size} productos en el servidor",
+                Text("${state.products.size} productos disponibles",
                     style = MaterialTheme.typography.titleMedium)
             }
             if (isAdmin) {
@@ -65,9 +64,9 @@ fun RemoteCatalogScreen(
                             modifier = Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("Pedido directo al servidor",
+                            Text("Pedido de comprobación",
                                 style = MaterialTheme.typography.titleLarge)
-                            Text("Solicita 1 bolsa de almendras al servidor. " +
+                            Text("Solicita 1 bolsa de almendras. " +
                                 "Se descontará una unidad de su stock. " +
                                 "No usa el carrito ni se guarda en el historial de la app. No genera pagos ni envíos.",
                                 style = MaterialTheme.typography.bodyMedium)
@@ -84,11 +83,9 @@ fun RemoteCatalogScreen(
                                         else "Reintentar solicitud pendiente")
                                 }
                             } else {
-                                Text("Pedido creado: ${order.id}",
+                                Text("Pedido registrado · ${order.id.take(8)}",
                                     style = MaterialTheme.typography.bodySmall)
-                                Text("Estado: ${order.status} · Total: ${order.totalClp} CLP")
-                                Text("ID de solicitud: ${order.requestId}",
-                                    style = MaterialTheme.typography.bodySmall)
+                                Text("Estado: ${StorePresentation.statusLabel(order.status)} · Total: ${priceInPesos(order.totalClp)}")
                                 OutlinedButton(
                                     onClick = onCreateDemoOrder,
                                     enabled = !state.creatingOrder,
@@ -101,7 +98,7 @@ fun RemoteCatalogScreen(
                                 ) { Text("Preparar otro pedido") }
                             }
                             if (state.orderError != null) {
-                                Text(state.orderError, color = MaterialTheme.colorScheme.error)
+                                Text(storeMessage(state.orderError), color = MaterialTheme.colorScheme.error)
                             }
                             if (state.catalogWarning != null) {
                                 Text(state.catalogWarning,
@@ -122,16 +119,13 @@ fun RemoteCatalogScreen(
                     ) {
                         Text(product.name, style = MaterialTheme.typography.titleMedium)
                         Text("${product.category} · ${product.weightGrams} g")
-                        Text("Precio: ${product.priceClp} CLP · Stock servidor: ${product.stock}")
-                        Text("ID: ${product.id}", style = MaterialTheme.typography.bodySmall)
+                        Text("Precio: ${priceInPesos(product.priceClp)} · Existencias: ${product.stock}")
                     }
                 }
             }
             item {
                 Text(
-                    "El catálogo se consulta en el servidor. " +
-                        "La administración de inventario es local; " +
-                        "sus cambios no se sincronizan con el servidor.",
+                    "Los pedidos de comprobación descuentan existencias. No realizan cobros ni despachos reales.",
                     style = MaterialTheme.typography.bodySmall
                 )
             }

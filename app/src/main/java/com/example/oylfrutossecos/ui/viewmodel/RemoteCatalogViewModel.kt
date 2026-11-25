@@ -10,6 +10,7 @@ import com.example.oylfrutossecos.data.remote.ApiOrderRequest
 import com.example.oylfrutossecos.data.remote.ApiOrderResponse
 import com.example.oylfrutossecos.data.remote.ApiProduct
 import com.example.oylfrutossecos.data.remote.OylRestService
+import com.example.oylfrutossecos.data.repository.restError
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,8 +57,7 @@ class RemoteCatalogViewModel(
                 throw cancelled
             } catch (exception: Exception) {
                 mutableState.update {
-                    it.copy(loading = false, error = "No se pudo conectar al servidor: " +
-                        (exception.localizedMessage ?: "Error de red"))
+                    it.copy(loading = false, error = restError(exception))
                 }
             }
         }
@@ -78,7 +78,7 @@ class RemoteCatalogViewModel(
                 ?: UUID.randomUUID().toString().also { newId ->
                     if (!preferences.edit().putString("request_id", newId).commit()) {
                         mutableState.update {
-                            it.copy(orderError = "No se pudo guardar el ID de la solicitud en el dispositivo.")
+                            it.copy(orderError = "No pudimos guardar la solicitud en este dispositivo. No se ha enviado el pedido.")
                         }
                         return@launch
                     }
@@ -104,7 +104,7 @@ class RemoteCatalogViewModel(
                 } catch (_: Exception) {
                     mutableState.update {
                         it.copy(catalogWarning = "Pedido registrado, pero no se pudo actualizar " +
-                            "el stock mostrado. Pulsa Consultar servidor.")
+                            "las existencias mostradas. Pulsa Actualizar catálogo.")
                     }
                 }
             } catch (cancelled: CancellationException) {
@@ -113,9 +113,8 @@ class RemoteCatalogViewModel(
                 // No borrar requestId: un error de red puede ocurrir DESPUÉS de crear el pedido.
                 mutableState.update {
                     it.copy(creatingOrder = false,
-                        orderError = "No se confirmó el pedido: " +
-                            (exception.localizedMessage ?: "Error de red") +
-                            ". Reintenta con la MISMA solicitud para evitar duplicados.")
+                        orderError = "No se confirmó el pedido. " + restError(exception) +
+                            " Reintenta con la misma solicitud para evitar duplicados.")
                 }
             }
         }

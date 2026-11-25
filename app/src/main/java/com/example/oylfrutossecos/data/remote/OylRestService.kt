@@ -51,6 +51,9 @@ data class ApiOrderResponse(
 
 data class ApiProductInput(val name: String, val category: String, val description: String,
     val priceClp: Int, val weightGrams: Int, val stock: Int, val imageKey: String? = null)
+data class ApiOrderEvent(val eventId: String, val orderId: String, val kind: String,
+    val status: String, val createdAt: Long, val read: Boolean)
+
 data class ApiStockChange(val delta: Int, val note: String)
 data class ApiStockResult(val productId: Long, val oldStock: Int, val newStock: Int)
 data class ApiInventoryMovement(val id: Long, val productId: Long, val productName: String,
@@ -60,6 +63,9 @@ interface OylRestService {
     @GET("api/health")
     suspend fun health(): ApiHealth
 
+    @GET("api/pickup-points")
+    suspend fun pickupPoints(): List<com.example.oylfrutossecos.data.model.PickupPoint>
+
     @GET("api/products")
     suspend fun products(): List<ApiProduct>
 
@@ -68,6 +74,9 @@ interface OylRestService {
 
     @POST("api/orders")
     suspend fun createPersistedOrder(@Body request: RequestBody): ApiOrderResponse
+
+    @GET("api/orders/{id}/notifications")
+    suspend fun orderEvents(@Path("id") id: String): List<ApiOrderEvent>
 
     @GET("api/orders/{id}")
     suspend fun getOrder(@retrofit2.http.Path("id") id: String): ApiOrderResponse

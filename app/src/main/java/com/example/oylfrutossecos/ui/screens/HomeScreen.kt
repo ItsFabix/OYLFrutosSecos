@@ -122,7 +122,7 @@ fun HomeScreen(
                                 cartState.loading -> "Cargando carrito…"
                                 cartState.error != null -> "Revisa el carrito para actualizar"
                                 cartState.items.isEmpty() -> "Tu carrito está vacío."
-                                else -> "${cartState.count} bolsas · Total: ${priceInPesos(cartState.total)}"
+                                else -> "${quantityLabel(cartState.count, "bolsa", "bolsas")} · Total: ${priceInPesos(cartState.total)}"
                             }, style = MaterialTheme.typography.bodySmall)
                         }
                         TextButton(onClick = onCart, enabled = navigationEnabled) { Text("Ver carrito") }
@@ -153,7 +153,7 @@ fun HomeScreen(
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ShortcutTile("Notificaciones" + if (unreadNotices > 0) " ($unreadNotices nuevas)" else "",
+                    ShortcutTile("Notificaciones" + if (unreadNotices > 0) " ($unreadNotices ${if (unreadNotices == 1) "nueva" else "nuevas"})" else "",
                         Icons.Default.Notifications, navigationEnabled, Modifier.weight(1f), onNotifications)
                     ShortcutTile("Puntos de retiro", Icons.Default.LocationOn, navigationEnabled, Modifier.weight(1f), onMap)
                 }

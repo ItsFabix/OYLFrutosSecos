@@ -66,8 +66,9 @@ fun StockBadge(stock: Int) {
     Surface(color = color, shape = RoundedCornerShape(50)) {
         Text(when {
             stock == 0 -> "Agotado"
-            stock <= InventoryRules.LOW_STOCK_LIMIT -> "Pocas unidades · $stock bolsas"
-            else -> "Disponible · $stock bolsas"
+            stock == 1 -> "Última unidad · 1 bolsa"
+            stock <= InventoryRules.LOW_STOCK_LIMIT -> "Pocas unidades · ${quantityLabel(stock, "bolsa", "bolsas")}"
+            else -> "Disponible · ${quantityLabel(stock, "bolsa", "bolsas")}"
         }, Modifier.padding(horizontal = 10.dp, vertical = 5.dp), style = MaterialTheme.typography.labelMedium)
     }
 }

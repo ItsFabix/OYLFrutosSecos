@@ -47,11 +47,11 @@ fun StockAdjustmentScreen(product: Product, form: StockAdjustmentViewModel,
             else MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         AdminFormField("Cantidad de bolsas", input.quantity, { form.change(InventoryField.QUANTITY, it) },
             Icons.Default.Inventory2, state.errors[InventoryField.QUANTITY],
-            "Entre 1 y 100.000; una salida no puede superar las existencias.", !state.locked, KeyboardType.Number)
+            "Entre 1 y 10.000; una salida no puede superar las existencias.", !state.locked, KeyboardType.Number)
         AdminFormField("Motivo", input.note, { form.change(InventoryField.NOTE, it) },
             Icons.Default.EditNote, state.errors[InventoryField.NOTE],
             "De 3 a 120 caracteres. Ejemplos: reposición o merma.", !state.locked, minLines = 2)
-        state.projectedStock?.let { Text("Nuevo stock estimado: $it bolsas",
+        state.projectedStock?.let { Text("Nuevo stock estimado: ${quantityLabel(it, "bolsa", "bolsas")}",
             color = MaterialTheme.colorScheme.primary) }
         state.error?.let { Text(storeMessage(it), color = MaterialTheme.colorScheme.error) }
         Button(onClick = form::save, enabled = !state.locked, modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp)) {

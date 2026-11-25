@@ -186,7 +186,7 @@ class HomeNavigationTest {
         compose.onNodeWithTag("home-list").performScrollToNode(hasText("Notificaciones", substring = true))
         compose.onNode(hasClickAction() and hasText("Notificaciones", substring = true))
             .performClick()
-        compose.onNodeWithText("Avisos de tus pedidos y productos en este dispositivo.")
+        compose.onNodeWithText("Mantente al día con tus pedidos y novedades.")
             .assertIsDisplayed()
         home()
         compose.onNodeWithText("Ver carrito").assertIsDisplayed()
@@ -280,7 +280,7 @@ class HomeNavigationTest {
         compose.onNodeWithText("Historial no disponible").assertDoesNotExist()
         openAdminSettings()
         configureAccess("incorrect-test-administrative-key")
-        compose.waitUntil(10000) { compose.onAllNodesWithText("El servidor rechazó la clave", substring = true)
+        compose.waitUntil(10000) { compose.onAllNodesWithText("La clave administrativa no es válida", substring = true)
             .fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithText("Acceso administrativo conectado").assertDoesNotExist()
         configureAccess("navigation-test-admin-key")

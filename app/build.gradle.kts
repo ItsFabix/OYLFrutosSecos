@@ -1,4 +1,5 @@
 plugins {
+    jacoco
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
@@ -38,6 +39,9 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
     defaultConfig {
         val apiUrl = providers.gradleProperty("oylApiBaseUrl").getOrElse("http://10.0.2.2:8080/")
         require(apiUrl.matches(Regex("https?://[a-zA-Z0-9.:-]+/"))) { "oylApiBaseUrl debe ser una URL base http(s) terminada en /" }
@@ -64,6 +68,9 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     testImplementation(libs.junit)
     testImplementation("com.squareup.okhttp3:mockwebserver:3.14.9")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    testImplementation("io.mockk:mockk:1.13.13")
+    testImplementation("org.robolectric:robolectric:4.14.1")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
@@ -80,4 +87,40 @@ dependencies {
 // Mapa nativo OpenStreetMap.
 dependencies {
     implementation("org.osmdroid:osmdroid-android:6.1.20")
+}
+
+ 
+// Cobertura de las clases de lógica (no de UI Compose generada).
+// Ejecutar :app:jacocoDebugLogicReport después de testDebugUnitTest.
+jacoco {
+    toolVersion = "0.8.13"
+}
+// Robolectric loads Android-backed logic through a sandbox classloader without a source location.
+// Instrument it as well; the report's evaluated packages remain unchanged.
+tasks.withType<Test>().configureEach {
+    extensions.configure<org.gradle.testing.jacoco.plugins.JacocoTaskExtension> {
+        isIncludeNoLocationClasses = true
+        excludes = listOf("jdk.internal.*")
+    }
+}
+tasks.register<org.gradle.testing.jacoco.tasks.JacocoReport>("jacocoDebugLogicReport") {
+    dependsOn("testDebugUnitTest")
+    executionData.setFrom(
+        fileTree(layout.buildDirectory.dir("outputs/unit_test_code_coverage/debugUnitTest")) {
+            include("**/*.exec", "**/*.ec")
+        }
+    )
+    classDirectories.setFrom(files(
+        fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
+            include("**/domain/**", "**/data/repository/**", "**/ui/viewmodel/**")
+        },
+        fileTree(layout.buildDirectory.dir("intermediates/javac/debug/compileDebugJavaWithJavac/classes")) {
+            include("**/domain/**", "**/data/repository/**", "**/ui/viewmodel/**")
+        }
+    ))
+    sourceDirectories.setFrom(files("src/main/java"))
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+    }
 }

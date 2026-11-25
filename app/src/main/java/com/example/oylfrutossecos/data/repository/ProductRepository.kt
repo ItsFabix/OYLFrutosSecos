@@ -25,7 +25,7 @@ class ProductRepository(private val database: OylDatabase,
         require(draft.validationError() == null) { draft.validationError().orEmpty() }
         val key = adminKey().also { check(it.isNotBlank()) { "Introduce la clave administrativa para guardar productos." } }
         val remoteId = id?.let { local -> database.readProducts().firstOrNull { it.id == local }?.remoteId
-            ?: error("El producto local no está vinculado al servidor.") }
+                ?: error("Este producto ya no está disponible. Actualiza el catálogo.") }
         // Una foto privada no es una URL pública ni debe salir del dispositivo.
         val input = ApiProductInput(draft.name, draft.category, draft.description, draft.priceClp,
             draft.weightGrams, draft.stock, draft.imageKey?.takeIf { it in listOf("nut", "fruit", "seed") })

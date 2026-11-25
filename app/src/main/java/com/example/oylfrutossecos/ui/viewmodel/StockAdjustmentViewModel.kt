@@ -55,7 +55,7 @@ class StockAdjustmentViewModel(currentStock: Int, private val saved: SavedStateH
                 mutable.update { it.copy(saving = false, error = error, completed = error == null) }
             }
         } catch (_: Exception) {
-            mutable.update { it.copy(saving = false, error = "No se pudo guardar el movimiento local. Intenta de nuevo.") }
+                mutable.update { it.copy(saving = false, error = "No se pudo guardar el movimiento. Intenta de nuevo.") }
         }
     }
 

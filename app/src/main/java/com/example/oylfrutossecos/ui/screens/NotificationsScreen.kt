@@ -26,7 +26,8 @@ fun NotificationsScreen(
     state: NotificationUiState, onBack: () -> Unit, onRefresh: () -> Unit,
     onMarkRead: (Long) -> Unit, onMarkAllRead: () -> Unit,
     onOpen: (AppNotice) -> Unit, onTest: () -> Unit,
-    permissionGranted: Boolean, onRequestPermission: () -> Unit
+    permissionGranted: Boolean, onRequestPermission: () -> Unit,
+    showDiagnostics: Boolean = false
 ) {
     var filter by rememberSaveable { mutableStateOf("Todas") }
     var showSettings by rememberSaveable { mutableStateOf(false) }
@@ -35,7 +36,7 @@ fun NotificationsScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp)) {
         item {
             ReferenceTitle("Notificaciones", onBack)
-            Text("Avisos de tus pedidos y productos en este dispositivo.", style = MaterialTheme.typography.labelSmall)
+            Text("Mantente al día con tus pedidos y novedades.", style = MaterialTheme.typography.labelSmall)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 listOf("Todas", "Pedidos", "Inventario").forEach { label -> OylFilterChip(filter == label, { filter = label }, label = { Text(label) }) }
             }
@@ -48,7 +49,7 @@ fun NotificationsScreen(
             }
         }
         if (state.message != null) item {
-            Text(state.message, color = MaterialTheme.colorScheme.primary)
+            Text(storeMessage(state.message), color = MaterialTheme.colorScheme.primary)
         }
         if (state.loading) item { CircularProgressIndicator() }
         if (state.error != null) item {
@@ -84,7 +85,7 @@ fun NotificationsScreen(
         }
         item {
             OutlinedButton(onClick = { showSettings = !showSettings }, modifier = Modifier.fillMaxWidth()) {
-                Text("Avisos en el dispositivo")
+                Text("Preferencias de notificaciones")
                 Spacer(Modifier.width(8.dp))
                 Icon(if (showSettings) Icons.Default.ExpandLess else Icons.Default.ExpandMore, null)
             }
@@ -96,9 +97,14 @@ fun NotificationsScreen(
                             Text("Activa el permiso para mostrar avisos fuera de la app.",
                                 style = MaterialTheme.typography.bodySmall)
                             Button(onClick = onRequestPermission) { Text("Permitir notificaciones") }
+                        } else {
+                            Text("Las notificaciones están permitidas en este dispositivo.", style = MaterialTheme.typography.bodySmall)
                         }
-                        Button(onClick = onTest, enabled = !state.busy) {
-                            Text("Crear aviso")
+                        if (showDiagnostics) {
+                            Text("Comprobación administrativa: envía un aviso a este dispositivo.", style = MaterialTheme.typography.bodySmall)
+                            OutlinedButton(onClick = onTest, enabled = !state.busy) {
+                                Text("Comprobar notificaciones")
+                            }
                         }
                     }
                 }

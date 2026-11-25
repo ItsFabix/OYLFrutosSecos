@@ -58,7 +58,7 @@ class InventoryViewModel(private val repository: InventoryRepository,
             try {
                 repository.adjust(adminId, productId, type, quantity, note)
                 mutable.update { it.copy(busy = false, loading = false,
-                    notice = "Movimiento registrado en Spring Boot.") }
+                    notice = "Inventario actualizado correctamente.") }
                 onResult(null)
                 onSuccess()
                 load()
@@ -73,7 +73,7 @@ class InventoryViewModel(private val repository: InventoryRepository,
                 mutable.update { it.copy(busy = false, error = message) }
                 onResult(message)
             } catch (_: Exception) {
-                val message = "No se pudo confirmar el movimiento REST. Actualiza el inventario antes de reintentar."
+                val message = "No pudimos confirmar el movimiento. Actualiza el inventario antes de reintentar."
                 mutable.update { it.copy(busy = false, error = message) }
                 onResult(message)
             } finally {

@@ -94,7 +94,7 @@ class SmallScreenUiTest {
 
     @Test fun mapSearchRemainsVisibleWithKeyboardAndRestoresRealActionsAt320dp() {
         compose.setContent { OYLFrutosSecosTheme { Surface {
-            Box(Modifier.width(320.dp).height(640.dp)) { PickupMapScreen {} }
+            Box(Modifier.width(320.dp).height(640.dp)) { PickupMapScreen(onBack = {}) }
         } } }
         val search = compose.onNode(hasSetTextAction() and hasText("Buscar puntos de retiro"))
         search.performClick().performTextInput("Centro")

@@ -41,4 +41,27 @@ class RetrofitContractTest {
             assertEquals("/api/admin/products/1000/stock", server.takeRequest().path)
         } finally { server.shutdown() }
     }
+
+    @Test fun newMicroserviceRoutesUseExistingAndroidBaseUrl() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        try {
+            val api = Retrofit.Builder().baseUrl(server.url("/"))
+                .addConverterFactory(GsonConverterFactory.create())
+                .build().create(OylRestService::class.java)
+            server.enqueue(MockResponse().setHeader("Content-Type", "application/json")
+                .setBody("""[{"id":"centro","title":"Centro","reference":"Plaza",
+                "schedule":"Lun a vie","latitude":-33.4372,"longitude":-70.6506}]"""))
+            assertEquals("centro", api.pickupPoints().single().id)
+            assertEquals("/api/pickup-points", server.takeRequest().path)
+
+            val id = "123e4567-e89b-12d3-a456-426614174000"
+            server.enqueue(MockResponse().setHeader("Content-Type", "application/json")
+                .setBody("""[{"eventId":"order:sample:created","orderId":"$id",
+                "kind":"ORDER_CREATED","status":"PENDING","createdAt":1730000000000,
+                "read":false}]"""))
+            assertEquals("ORDER_CREATED", api.orderEvents(id).single().kind)
+            assertEquals("/api/orders/$id/notifications", server.takeRequest().path)
+        } finally { server.shutdown() }
+    }
 }

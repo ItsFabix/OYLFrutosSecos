@@ -2,7 +2,7 @@ package com.example.oylfrutossecos.data.model
 
 // Históricos locales y copias de pedidos REST, diferenciados por remoteOrderId.
 enum class OrderStatus(val displayName: String) {
-    PENDING("Pendiente de validación"),
+    PENDING("Pendiente"),
     CONFIRMED("Confirmado"),
     PREPARED("Preparado"),
     DELIVERED("Entregado");

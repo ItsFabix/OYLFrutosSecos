@@ -28,8 +28,18 @@ local.properties
 .env.*
 keystore.properties
 signing.properties
-@'
 *.zip
 /referencias-diseno/
 /matriz-anchos/
-'@ | Add-Content .gitignore
+# Generated outputs for every module; keep source, wrappers, tests and documentation.
+**/build/
+**/.gradle/
+/app/release/baselineProfiles/
+/app/release/output-metadata.json
+*.log
+*.h2.db
+*.lock.db
+# Private signing material (deliver separately when required by the official rubric).
+*.p12
+*.pfx
+*.key

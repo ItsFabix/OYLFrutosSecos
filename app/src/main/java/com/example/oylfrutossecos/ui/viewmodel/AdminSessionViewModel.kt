@@ -58,12 +58,12 @@ class AdminSessionViewModel(private val operationScope: CoroutineScope? = null) 
                 // No mostrar cuerpos HTTP, mensajes arbitrarios ni la credencial.
                 error = when (failure) {
                     is HttpException -> when (failure.code()) {
-                        401, 403 -> "El servidor rechazó la clave administrativa. Revisa que coincida con OYL_ADMIN_KEY y que esté configurada en Spring Boot."
-                        404 -> "El servidor no dispone de las rutas administrativas esperadas. Comprueba la versión y la URL de la API."
-                        else -> "No se pudo validar el acceso. El servidor respondió HTTP ${failure.code()}. Intenta nuevamente."
+                        401, 403 -> "La clave administrativa no es válida. Revísala e inténtalo nuevamente."
+                        404 -> "El acceso administrativo no está disponible. Contacta a la administración."
+                        else -> "No pudimos validar el acceso. Inténtalo más tarde."
                     }
-                    is IOException -> "No se pudo contactar con Spring Boot. Comprueba que esté iniciado y que la conexión del emulador funcione."
-                    else -> "No se pudo validar el acceso al servidor. Intenta nuevamente."
+                    is IOException -> "No pudimos establecer una conexión. Revisa tu conexión e inténtalo nuevamente."
+                    else -> "No pudimos validar el acceso. Inténtalo nuevamente."
                 }
             } finally { if (attempt == generation) validating = false }
             if (attempt == generation && configured) onConnected()

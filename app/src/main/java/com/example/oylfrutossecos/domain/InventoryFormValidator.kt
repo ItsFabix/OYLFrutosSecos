@@ -20,7 +20,7 @@ object InventoryFormValidator {
             raw.isEmpty() -> "Ingresa la cantidad de bolsas."
             !Regex("-?[0-9]+").matches(raw) -> "La cantidad debe ser un número entero, sin decimales."
             raw.startsWith('-') -> "La cantidad no puede ser negativa."
-            amount == null || amount !in 1..100000 -> "La cantidad debe estar entre 1 y 100.000 bolsas."
+            amount == null || amount !in 1..10000 -> "La cantidad debe estar entre 1 y 10.000 bolsas."
             type != null -> runCatching { InventoryRules.newStock(currentStock, type, amount) }.exceptionOrNull()?.message
             else -> null
         }

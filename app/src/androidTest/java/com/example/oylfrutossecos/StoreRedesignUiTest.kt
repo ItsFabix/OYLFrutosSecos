@@ -33,15 +33,15 @@ class StoreRedesignUiTest {
         compose.setContent { OYLFrutosSecosTheme { Surface {
             Box(Modifier.width(320.dp)) {
                 NotificationsScreen(NotificationUiState(loading = false), {}, {}, {}, {}, {},
-                    { created++ }, false, { permission++ })
+                    { created++ }, false, { permission++ }, showDiagnostics = true)
             }
         } } }
-        compose.onNodeWithTag("notices-list").performScrollToNode(hasText("Avisos en el dispositivo"))
-        compose.onNodeWithText("Avisos en el dispositivo").performClick()
+        compose.onNodeWithTag("notices-list").performScrollToNode(hasText("Preferencias de notificaciones"))
+        compose.onNodeWithText("Preferencias de notificaciones").performClick()
         compose.onNodeWithTag("notices-list").performScrollToNode(hasText("Permitir notificaciones"))
         compose.onNodeWithText("Permitir notificaciones").performClick()
-        compose.onNodeWithTag("notices-list").performScrollToNode(hasText("Crear aviso"))
-        compose.onNodeWithText("Crear aviso").performClick()
+        compose.onNodeWithTag("notices-list").performScrollToNode(hasText("Comprobar notificaciones"))
+        compose.onNodeWithText("Comprobar notificaciones").performClick()
         compose.runOnIdle { assertEquals(1, created); assertEquals(1, permission) }
     }
 
@@ -116,11 +116,14 @@ class StoreRedesignUiTest {
         field.performScrollTo().performTextInput("incorrecto")
         closeSoftKeyboard()
         compose.onNodeWithText("Buscar producto").performScrollTo().performClick()
-        compose.onNodeWithText("Revisa el código").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("QR escaneado, pero no compatible").assertIsDisplayed()
+        compose.onNodeWithText("Cerrar").performClick()
         field.performScrollTo().performTextReplacement("OYL:1")
         closeSoftKeyboard()
         compose.onNodeWithText("Buscar producto").performScrollTo().performClick()
-        compose.onNodeWithText("Stock del catálogo: 8 bolsas").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("¡Producto OYL reconocido!").assertIsDisplayed()
+        compose.onNodeWithText("Cerrar").performClick()
+        compose.onNodeWithText("Disponibles: 8 bolsas").performScrollTo().assertIsDisplayed()
         snapshot("qr-resultado")
         compose.onNodeWithText("Ver detalle del producto").performScrollTo().performClick()
         compose.onNodeWithText("Registrar movimiento de inventario").performScrollTo().performClick()

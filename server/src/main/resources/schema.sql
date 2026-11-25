@@ -45,3 +45,15 @@ ALTER TABLE demo_orders ADD COLUMN IF NOT EXISTS contact_address VARCHAR(255) DE
 -- Serializa reintentos por solicitud, incluso si envían productos diferentes.
 CREATE TABLE IF NOT EXISTS checkout_requests (request_id VARCHAR(36) PRIMARY KEY);
 CREATE SEQUENCE IF NOT EXISTS product_ids START WITH 1000;
+
+-- Outbox: el registro del evento se confirma junto con la compra/transición.
+-- Los eventos pendientes sobreviven reinicios y caídas del servicio de notificaciones.
+CREATE TABLE IF NOT EXISTS integration_outbox (
+    event_id VARCHAR(120) PRIMARY KEY,
+    order_id VARCHAR(36) NOT NULL REFERENCES demo_orders(id),
+    kind VARCHAR(30) NOT NULL,
+    status VARCHAR(20) NOT NULL,
+    created_at BIGINT NOT NULL,
+    delivered_at BIGINT
+);
+CREATE INDEX IF NOT EXISTS idx_integration_outbox_pending ON integration_outbox(delivered_at);

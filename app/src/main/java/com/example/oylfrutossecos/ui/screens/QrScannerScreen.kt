@@ -144,7 +144,7 @@ fun QrScannerScreen(
                             Text(product.name, style = MaterialTheme.typography.titleLarge)
                             Text("${product.category} · ${product.weightGrams} g")
                             Text("Precio: ${priceInPesos(product.priceClp)}")
-                            Text("Stock del catálogo: ${product.stock} bolsas")
+                            Text("Disponibles: ${quantityLabel(product.stock, "bolsa", "bolsas")}")
                             StockBadge(product.stock)
                             Button(onClick = { onOpenProduct(product.id) }, modifier = Modifier.fillMaxWidth()) {
                                 Text("Ver detalle del producto")
@@ -159,6 +159,6 @@ fun QrScannerScreen(
                     }
             }
         }
-        InfoBanner("Información de productos", "Busca productos con su código. El lector de cámara utiliza los servicios de Google.")
+        InfoBanner("Información de productos", "Escanea un código OYL o ingrésalo para consultar el producto.")
     }
 }

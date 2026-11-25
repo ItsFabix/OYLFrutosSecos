@@ -27,7 +27,7 @@ class PickupWeatherUiTest {
     private fun render(state: PickupWeatherState, onRetry: () -> Unit = {}, onPoint: (PickupPoint) -> Unit = {}) {
         compose.setContent { OYLFrutosSecosTheme { Surface {
             Box(Modifier.width(320.dp).height(640.dp)) {
-                PickupMapScreen(state, onPoint, onRetry) {}
+                PickupMapScreen(state, onPoint, onRetry, onBack = {})
             }
         } } }
     }
@@ -66,8 +66,8 @@ class PickupWeatherUiTest {
             assertEquals(selected!!.longitude, map.mapCenter.longitude, 0.0001)
             val markers = map.overlays.filterIsInstance<org.osmdroid.views.overlay.Marker>()
             assertEquals(2, markers.size)
-            assertEquals(1f, markers.single { it.title == selected!!.title }.alpha)
-            assertTrue(markers.single { it.title != selected!!.title }.alpha < 1f)
+            assertEquals(1f, markers.single { it.title == selected!!.title.removeSuffix(" (demo)") }.alpha)
+            assertTrue(markers.single { it.title != selected!!.title.removeSuffix(" (demo)") }.alpha < 1f)
         }
         compose.onNodeWithText("Centro").performClick().assertIsSelected()
         awaitMapCenter(point)

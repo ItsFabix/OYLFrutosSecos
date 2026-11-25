@@ -7,6 +7,8 @@ import okhttp3.RequestBody
 open class StubOylRestService : OylRestService {
     override suspend fun health(): ApiHealth = error("Unused")
     override suspend fun products(): List<ApiProduct> = error("Unused")
+    override suspend fun pickupPoints(): List<com.example.oylfrutossecos.data.model.PickupPoint> = error("Unused")
+    override suspend fun orderEvents(id: String): List<ApiOrderEvent> = error("Unused")
     override suspend fun createOrder(request: ApiOrderRequest): ApiOrderResponse = error("Unused")
     override suspend fun createPersistedOrder(request: RequestBody): ApiOrderResponse = error("Unused")
     override suspend fun getOrder(id: String): ApiOrderResponse = error("Unused")

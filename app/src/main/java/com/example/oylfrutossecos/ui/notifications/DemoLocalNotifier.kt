@@ -28,7 +28,7 @@ object DemoLocalNotifier {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(NotificationChannel(
                 CHANNEL, "Avisos de OYL", NotificationManager.IMPORTANCE_DEFAULT
-            ).apply { description = "Avisos de pedidos y productos en este dispositivo" })
+            ).apply { description = "Novedades de tus pedidos y productos de OYL" })
         }
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP

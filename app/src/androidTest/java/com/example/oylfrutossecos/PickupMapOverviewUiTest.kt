@@ -66,8 +66,8 @@ class PickupMapOverviewUiTest {
             centered
         }
         compose.runOnIdle {
-            val selected = markers().single { it.title == point.title }
-            val other = markers().single { it.title != point.title }
+            val selected = markers().single { it.title == point.title.removeSuffix(" (demo)") }
+            val other = markers().single { it.title != point.title.removeSuffix(" (demo)") }
             assertEquals(1f, selected.alpha)
             assertTrue(other.alpha < selected.alpha)
             assertTrue(selected.icon.intrinsicWidth > other.icon.intrinsicWidth)
@@ -86,7 +86,7 @@ class PickupMapOverviewUiTest {
         var weatherRequests = 0
         compose.setContent { OYLFrutosSecosTheme { Surface {
             Box(Modifier.size(320.dp, 640.dp)) {
-                PickupMapScreen(onWeatherPoint = { weatherRequests++ }) {}
+                PickupMapScreen(onWeatherPoint = { weatherRequests++ }, onBack = {})
             }
         } } }
         capture("clima-vista-general-320dp")
@@ -117,7 +117,7 @@ class PickupMapOverviewUiTest {
         val width = mutableStateOf(320.dp)
         val height = mutableStateOf(640.dp)
         compose.setContent { OYLFrutosSecosTheme {
-            Box(Modifier.size(width.value, height.value)) { PickupMapScreen {} }
+            Box(Modifier.size(width.value, height.value)) { PickupMapScreen(onBack = {}) }
         } }
         awaitOverview()
         compose.runOnIdle { assertTrue(map().isLaidOut); assertTrue(map().width > 0); assertTrue(map().height > 0) }
@@ -137,7 +137,7 @@ class PickupMapOverviewUiTest {
             Column(Modifier.size(320.dp, 640.dp)) {
                 Text("Actualización ${tick.intValue}")
                 Box(Modifier.weight(1f)) {
-                    PickupMapScreen(weather.value, onWeatherPoint = { requests++ }) {}
+                    PickupMapScreen(weather.value, onWeatherPoint = { requests++ }, onBack = {})
                 }
             }
         } } }
