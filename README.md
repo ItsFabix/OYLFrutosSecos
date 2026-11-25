@@ -1,3 +1,5 @@
+> **Novedad Control 3:** se incorporaron tres aplicaciones Spring Boot independientes: ventas (8080), retiro (8081) y notificaciones (8082). Consultar [MICROSERVICIOS_CONTROL3.md](MICROSERVICIOS_CONTROL3.md) para ejecución, endpoints y pruebas. El APK previo no refleja los nuevos puntos remotos; requiere recompilación y nueva firma.
+
 # OYL Frutos Secos
 
 Proyecto académico de **DSY1105 — Desarrollo de Aplicaciones Móviles**, Evaluación Parcial 4 (6 %), entrega Control 3. Repositorio: [ItsFabix/OYLFrutosSecos](https://github.com/ItsFabix/OYLFrutosSecos). Rama de trabajo: `control3-integracion`.
