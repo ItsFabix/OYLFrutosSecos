@@ -27,7 +27,7 @@ public class AdminController {
         this.key = key;
     }
 
-    private void authorize(String candidate) {
+    void authorize(String candidate) {
         if (key == null || key.length() < 16 || candidate == null
                 || !MessageDigest.isEqual(key.getBytes(StandardCharsets.UTF_8),
                         candidate.getBytes(StandardCharsets.UTF_8))) {
@@ -179,6 +179,11 @@ public class AdminController {
                     "El pedido no admite más cambios");
         };
         jdbc.update("UPDATE demo_orders SET status = ? WHERE id = ?", next, id);
+        jdbc.update("""
+                INSERT INTO integration_outbox(event_id, order_id, kind, status, created_at)
+                VALUES (?, ?, 'ORDER_STATUS', ?, ?)
+                """, "order:" + id + ":" + next.toLowerCase(java.util.Locale.ROOT),
+                id, next, System.currentTimeMillis());
         return orders.byId(id);
     }
 }

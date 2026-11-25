@@ -152,6 +152,12 @@ public class OrderService {
                     """, line.productId(), -line.quantity(), afterStock + line.quantity(),
                     afterStock, "Pedido REST " + orderId, System.currentTimeMillis());
         }
+        // Outbox en la MISMA transacción: un pedido confirmado siempre deja un evento
+        // pendiente de envío; la venta NO depende de la disponibilidad del otro servicio.
+        jdbc.update("""
+                INSERT INTO integration_outbox(event_id, order_id, kind, status, created_at)
+                VALUES (?, ?, 'ORDER_CREATED', 'PENDING', ?)
+                """, "order:" + orderId + ":created", orderId, System.currentTimeMillis());
         return byId(orderId);
     }
 
