@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import com.example.oylfrutossecos.ui.components.*
+import com.example.oylfrutossecos.domain.StorePresentation
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
@@ -37,7 +38,7 @@ fun InventoryScreen(state: InventoryState, onBack: () -> Unit,
             ReferenceTitle("Gestión de inventario", onBack)
             OutlinedTextField(query, { query = it }, label = { Text("Buscar productos") },
                 leadingIcon = { Icon(Icons.Default.Search, null) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-            Text("${state.products.size} productos · $lowCount con stock bajo o agotado",
+            Text("${quantityLabel(state.products.size, "producto", "productos")} · $lowCount con stock bajo o agotado",
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OylFilterChip(selected = !lowOnly, onClick = { lowOnly = false },
@@ -98,8 +99,8 @@ private fun InventoryMovementCard(movement: InventoryMovement) {
             verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("${movement.type.label}: ${movement.productName}",
                 style = MaterialTheme.typography.titleSmall)
-            Text("${if (movement.type.name == "ENTRY") "+" else "−"}${movement.quantity} bolsas · ${movement.beforeStock} → ${movement.afterStock}")
-            Text("Motivo: ${movement.note}")
+            Text("${if (movement.type.name == "ENTRY") "+" else "−"}${quantityLabel(movement.quantity, "bolsa", "bolsas")} · ${movement.beforeStock} → ${movement.afterStock}")
+            Text("Motivo: ${StorePresentation.inventoryNote(movement.note)}")
             Text(SimpleDateFormat("dd/MM/yyyy · HH:mm", Locale("es", "CL"))
                 .format(Date(movement.createdAt)), style = MaterialTheme.typography.bodySmall)
         }

@@ -17,6 +17,7 @@ import com.example.oylfrutossecos.data.model.Registration
 import com.example.oylfrutossecos.data.model.UserRole
 import com.example.oylfrutossecos.domain.AuthValidator
 import com.example.oylfrutossecos.domain.InventoryRules
+import com.example.oylfrutossecos.domain.StorePresentation
 import com.example.oylfrutossecos.data.model.InventoryMovement
 import com.example.oylfrutossecos.data.model.MovementType
 import com.example.oylfrutossecos.data.model.AppNotice
@@ -195,7 +196,7 @@ class OylDatabase private constructor(context: Context) :
                 arrayOf(userId.toString())
             ).use { it.moveToFirst() }
             check(!pendingOrder) {
-                "Hay un pedido REST pendiente. Usa Recuperar pedido pendiente antes de modificar el carrito."
+                "Hay un pedido pendiente. Usa Recuperar pedido pendiente antes de modificar el carrito."
             }
             if (quantity <= 0) {
                 db.delete("cart_items", "user_id = ? AND product_id = ?",
@@ -407,14 +408,14 @@ class OylDatabase private constructor(context: Context) :
             forEachAdmin(writableDatabase) { adminId ->
                 addNotice(writableDatabase, adminId, NoticeKind.STOCK_LOW,
                     if (after == 0) "Producto agotado" else "Alerta de stock bajo",
-                    "$name: quedan $after bolsas en el servidor.", "inventory")
+                    "$name: ${if (after == 1) "queda 1 bolsa" else "quedan $after bolsas"}.", "inventory")
             }
         }
     }
 
     fun notifyRemoteOrderCreated(userId: Long, orderId: Long) {
         addNotice(writableDatabase, userId, NoticeKind.ORDER_CREATED,
-            "Pedido REST #$orderId registrado", "El servidor confirmó tu pedido.", "orders")
+            "Pedido #$orderId recibido", StorePresentation.eventMessage("PENDING"), "orders")
     }
 
     fun updateRemoteOrderStatus(userId: Long, serverId: String, status: String) {
@@ -422,15 +423,15 @@ class OylDatabase private constructor(context: Context) :
         val db = writableDatabase
         db.beginTransaction()
         try {
-            val row = db.rawQuery("SELECT id, status FROM demo_orders WHERE user_id = ? AND server_order_id = ?",
+            val row = db.rawQuery("SELECT id, status, delivery FROM demo_orders WHERE user_id = ? AND server_order_id = ?",
                 arrayOf(userId.toString(), serverId)).use {
-                if (it.moveToFirst()) it.getLong(0) to it.getString(1) else null
+                if (it.moveToFirst()) Triple(it.getLong(0), it.getString(1), it.getString(2)) else null
             }
             if (row != null && row.second != status) {
                 db.update("demo_orders", ContentValues().apply { put("status", status) },
                     "id = ? AND user_id = ?", arrayOf(row.first.toString(), userId.toString()))
-                addNotice(db, userId, NoticeKind.ORDER_STATUS, "Pedido REST #${row.first}: ${next.displayName}",
-                    "El servidor actualizó el estado de tu pedido.", "orders")
+                addNotice(db, userId, NoticeKind.ORDER_STATUS, "Pedido #${row.first}: ${next.displayName}",
+                    StorePresentation.eventMessage(status, row.third), "orders")
             }
             db.setTransactionSuccessful()
         } finally { db.endTransaction() }

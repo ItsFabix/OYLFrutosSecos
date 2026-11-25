@@ -25,8 +25,8 @@ fun CartScreen(state: CartState, onChange: (Long, Int) -> Unit,
         if (state.loading) item { CircularProgressIndicator() }
         if (!state.loading && state.pending != null) item {
             InfoBanner("Solicitud anterior protegida",
-                "El resultado del pedido REST está pendiente. El carrito permanece protegido para evitar duplicados. " +
-                    "Recupera la misma solicitud. Referencia: ${state.pending.requestId}", error = true)
+                "Tu solicitud anterior aún está pendiente de revisión. El carrito permanece protegido para evitar duplicados. " +
+                    "Selecciona Recuperar pedido pendiente para revisar su estado.", error = true)
             Button(onClick = onCheckout, enabled = !state.busy, modifier = Modifier.fillMaxWidth()) {
                 Text("Recuperar pedido pendiente")
             }

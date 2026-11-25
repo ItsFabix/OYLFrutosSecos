@@ -71,7 +71,7 @@ class OrderViewModel(private val repository: OrderRepository, private var user: 
             } catch (e: IllegalStateException) {
                 mutable.update { it.copy(busy = false, error = e.message ?: "No se pudo guardar el pedido.") }
             } catch (_: Exception) {
-                mutable.update { it.copy(busy = false, error = "No se pudo contactar con Spring Boot. No se confirmó la compra. Si existe un intento pendiente, usa Recuperar pedido pendiente.") }
+                mutable.update { it.copy(busy = false, error = "No pudimos establecer una conexión. No se confirmó la compra. Si existe un intento pendiente, usa Recuperar pedido pendiente.") }
             } finally {
                 mutable.update { it.copy(busy = false) }
                 onSettled()

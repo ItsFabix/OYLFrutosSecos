@@ -34,8 +34,7 @@ fun OrderConfirmationScreen(user: User, cart: CartState, state: OrderUiState,
             cart.loading -> item { CircularProgressIndicator() }
             cart.pending != null -> item {
                 InfoBanner("Resultado pendiente",
-                    "Se reenviará exactamente la solicitud guardada. No se genera otro pedido, aunque el stock actual sea cero. " +
-                        "Referencia: ${cart.pending.requestId}", error = true)
+                    "Comprobaremos tu solicitud anterior para evitar una compra duplicada. Tu carrito se mantendrá protegido hasta conocer el resultado.", error = true)
                 state.error?.let { Text(storeMessage(it), color = MaterialTheme.colorScheme.error) }
                 Button(onClick = { onConfirm(cart.pending.delivery) }, enabled = !state.busy,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) {
@@ -80,7 +79,7 @@ fun OrderConfirmationScreen(user: User, cart: CartState, state: OrderUiState,
                     }
                 }
                 item { InfoBanner("Antes de confirmar",
-                    "Spring Boot comprobará los precios y descontará el stock en una transacción. El carrito se vaciará cuando el servidor confirme el registro. No se realizan pagos ni envíos reales.") }
+                    "Comprobaremos los precios y la disponibilidad al registrar el pedido. Esta versión académica no realiza cobros, despachos ni reservas de retiro reales.") }
                 item {
                     if (cart.items.any { it.quantity > it.product.stock }) Text("Hay productos sin stock suficiente. Vuelve al carrito.", color = MaterialTheme.colorScheme.error)
                     state.error?.let { Text(storeMessage(it), color = MaterialTheme.colorScheme.error) }

@@ -19,7 +19,7 @@ class SqlInitializationTest {
     private ServletWebServerApplicationContext start(String url) {
         return (ServletWebServerApplicationContext) SpringApplication.run(OylApiApplication.class,
                 "--spring.datasource.url=" + url, "--server.port=0", "--server.address=127.0.0.1",
-                "--spring.main.banner-mode=off", "--OYL_ADMIN_KEY=");
+                "--spring.main.banner-mode=off", "--OYL_ADMIN_KEY=", "--OYL_SERVICE_TOKEN=");
     }
 
     @Test void emptyDatabaseLoadsSqlAndRestartPreservesOrdersStockEditsAndAudit() {
@@ -55,10 +55,12 @@ class SqlInitializationTest {
             assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM demo_orders", Integer.class));
             assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM demo_order_lines", Integer.class));
             assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM inventory_movements", Integer.class));
+            assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM integration_outbox WHERE delivered_at IS NULL", Integer.class));
             var recovered = context.getBean(OrderService.class).create(new OrderService.CreateOrderRequest(
                 requestId, "cliente-sql", List.of(new OrderService.LineRequest(1, 1)), "PICKUP", "", ""));
             assertEquals(orderId, recovered.id());
             assertEquals(2, jdbc.queryForObject("SELECT stock FROM products WHERE id = 1", Integer.class));
+            assertEquals(1, jdbc.queryForObject("SELECT COUNT(*) FROM integration_outbox", Integer.class));
         }
     }
 }

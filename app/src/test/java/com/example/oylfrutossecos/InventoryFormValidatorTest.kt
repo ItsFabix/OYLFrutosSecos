@@ -21,7 +21,7 @@ class InventoryFormValidatorTest {
     }
 
     @Test fun quantityRejectsZeroNegativeFractionsTextAndOverflow() {
-        for (raw in listOf("0", "-2", "2.5", "abc", "100001", "2147483648", "99999999999999999999")) {
+        for (raw in listOf("0", "-2", "2.5", "abc", "10001", "100001", "2147483648", "99999999999999999999")) {
             assertEquals(raw, setOf(InventoryField.QUANTITY),
                 InventoryFormValidator.validate(valid.copy(quantity = raw), 5).keys)
         }
@@ -43,5 +43,10 @@ class InventoryFormValidatorTest {
 
     @Test fun stockOverflowStillUsesTheExistingDomainRule() {
         assertEquals(setOf(InventoryField.QUANTITY), InventoryFormValidator.validate(valid, Int.MAX_VALUE).keys)
+    }
+
+    @Test fun formMaximumMatchesTheAlreadyEnforcedRestRepositoryLimit() {
+        assertTrue(InventoryFormValidator.validate(valid.copy(quantity = "10000"), 0).isEmpty())
+        assertEquals(setOf(InventoryField.QUANTITY), InventoryFormValidator.validate(valid.copy(quantity = "10001"), 0).keys)
     }
 }

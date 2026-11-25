@@ -25,7 +25,7 @@ class CheckoutCoordinator(private val cache: CheckoutStore, private val api: Oyl
                 "El carrito cambió. Vuelve a revisar el pedido."
             }
             require(current.size <= 30 && current.all { it.quantity in 1..100 }) {
-                "El servidor admite hasta 30 productos y 100 bolsas por producto."
+                "Puedes incluir hasta 30 productos distintos y 100 bolsas por producto."
             }
             val request = ApiOrderRequest(
                 UUID.randomUUID().toString(), user.alias,
@@ -40,7 +40,7 @@ class CheckoutCoordinator(private val cache: CheckoutStore, private val api: Oyl
             val response = api.createPersistedOrder(
                 RequestBody.create(MediaType.parse("application/json; charset=utf-8"), pending.json))
             check(response.requestId == pending.requestId) {
-                "El servidor devolvió un identificador incorrecto."
+                "No pudimos verificar tu solicitud. Revisa el pedido pendiente."
             }
             val localId = cache.complete(user, response)
             // Confirmation is durable. Catalogue refresh must not turn success into a failed checkout.
@@ -55,10 +55,10 @@ class CheckoutCoordinator(private val cache: CheckoutStore, private val api: Oyl
                 http.response()?.headers()?.get(REJECTED_REQUEST_HEADER) == pending.requestId
             if (rejected) cache.clearRejected(user.id, pending.requestId)
             throw IllegalStateException(if (rejected)
-                "El servidor confirmó que esta solicitud no se registró por falta de stock. " +
+                "El pedido no se registró por falta de existencias. " +
                     "Puedes corregir el carrito y volver a confirmar."
-            else "El servidor devolvió error ${http.code()}. La solicitud sigue guardada. " +
-                "Usa Recuperar pedido pendiente; no se generará otro identificador.", http)
+            else "No pudimos confirmar el resultado. Tu solicitud sigue guardada. " +
+                "Usa Recuperar pedido pendiente para evitar una compra duplicada.", http)
         } catch (exception: Exception) {
             throw IllegalStateException(
                 "No fue posible confirmar el resultado. Usa Recuperar pedido pendiente para " +

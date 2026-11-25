@@ -50,7 +50,7 @@ fun CatalogScreen(state: CatalogState, onSearch: (String) -> Unit,
             }
             else -> {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    Text("${state.visibleProducts.size} productos en el catálogo", style = MaterialTheme.typography.labelMedium,
+                    Text("${quantityLabel(state.visibleProducts.size, "producto", "productos")} en el catálogo", style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 items(state.visibleProducts, key = { it.id }) { product -> ProductCard(product) { onProduct(product.id) } }

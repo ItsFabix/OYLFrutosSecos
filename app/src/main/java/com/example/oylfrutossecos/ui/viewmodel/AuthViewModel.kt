@@ -73,7 +73,7 @@ class AuthViewModel internal constructor(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                sessionError = "No se pudo abrir la sesión local. Intenta nuevamente."
+                sessionError = "No se pudo abrir tu sesión. Intenta nuevamente."
             } finally {
                 restoring = false
             }

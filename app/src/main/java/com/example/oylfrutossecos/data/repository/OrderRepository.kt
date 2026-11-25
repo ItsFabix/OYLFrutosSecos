@@ -20,7 +20,7 @@ class OrderRepository(private val database: OylDatabase, private val api: OylRes
         if (database.readPendingCheckout(user.id) == null) {
             RemoteCheckoutCache(database).refreshProductCache(api.products())
             require(database.readCart(user.id).all { it.product.remoteId != null }) {
-                "Hay productos locales sin vínculo REST. Quítalos del carrito y elígelos del catálogo del servidor."
+                "Algunos productos del carrito ya no están disponibles. Quítalos y vuelve a elegirlos en el catálogo."
             }
         }
         checkout.placeOrder(user, delivery, expectedItems)
@@ -30,7 +30,7 @@ class OrderRepository(private val database: OylDatabase, private val api: OylRes
         val local = database.readOrders(if (user.role == UserRole.ADMIN) null else user.id)
         try {
             val remote = if (user.role == UserRole.ADMIN) {
-                check(adminKey().isNotBlank()) { "Introduce la clave administrativa para consultar todos los pedidos REST." }
+                check(adminKey().isNotBlank()) { "Valida tu acceso administrativo para consultar todos los pedidos." }
                 api.adminOrders(adminKey())
             } else local.mapNotNull { it.remoteOrderId }.distinct().map { api.getOrder(it) }
             if (user.role == UserRole.CLIENT) remote.forEach {
@@ -70,11 +70,11 @@ internal fun mergeOrderHistory(local: List<OrderSummary>, remote: List<ApiOrderR
 
 internal fun restError(error: Exception): String = when (error) {
     is retrofit2.HttpException -> when (error.code()) {
-        401, 403 -> "Clave administrativa incorrecta o no configurada en el servidor."
-        404 -> "El producto, pedido o endpoint no existe en el servidor."
-        409 -> "El servidor rechazó el cambio. Actualiza los datos antes de reintentar."
-        else -> "El servidor respondió con error HTTP ${error.code()}."
+        401, 403 -> "La clave administrativa no es válida. Configura nuevamente tu acceso."
+        404 -> "No encontramos la información solicitada. Actualiza e inténtalo nuevamente."
+        409 -> "No pudimos aplicar el cambio. Actualiza los datos antes de reintentar."
+        else -> "Ocurrió un problema. Inténtalo más tarde."
     }
-    is java.io.IOException -> "No se pudo contactar con Spring Boot. Comprueba el servidor y la conexión."
-    else -> error.message ?: "No se pudo completar la operación REST."
+    is java.io.IOException -> "No pudimos establecer una conexión. Inténtalo nuevamente."
+    else -> "No pudimos completar la operación. Inténtalo nuevamente."
 }

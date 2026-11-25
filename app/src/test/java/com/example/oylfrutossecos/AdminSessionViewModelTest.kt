@@ -63,9 +63,9 @@ class AdminSessionViewModelTest {
             assertNotNull(vm.error)
             assertFalse(vm.error!!.contains(candidate))
             when (failure) {
-                is IOException -> assertTrue(vm.error!!.contains("No se pudo contactar"))
-                is HttpException -> if (failure.code() == 403) assertTrue(vm.error!!.contains("rechazó la clave"))
-                    else assertTrue(vm.error!!.contains("HTTP 500"))
+                is IOException -> assertEquals("No pudimos establecer una conexión. Revisa tu conexión e inténtalo nuevamente.", vm.error)
+                is HttpException -> if (failure.code() == 403) assertEquals("La clave administrativa no es válida. Revísala e inténtalo nuevamente.", vm.error)
+                    else assertEquals("No pudimos validar el acceso. Inténtalo más tarde.", vm.error)
             }
         }
     }

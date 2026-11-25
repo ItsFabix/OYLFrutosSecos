@@ -1,6 +1,27 @@
-> **Novedad Control 3:** se incorporaron tres aplicaciones Spring Boot independientes: ventas (8080), retiro (8081) y notificaciones (8082). Consultar [MICROSERVICIOS_CONTROL3.md](MICROSERVICIOS_CONTROL3.md) para ejecución, endpoints y pruebas. El APK previo no refleja los nuevos puntos remotos; requiere recompilación y nueva firma.
+> **Estado de cierre 25/11:** los cuatro eventos del pedido conocido volvieron a entregarse desde los registros originales del outbox, conservando IDs y fechas, después de respaldar ambas H2. Se verificaron también 20 comprobaciones aisladas de compra, estados, caída/recuperación y persistencia. Se detuvo la búsqueda de datos Android antiguos por decisión del equipo; la demostración usa un AVD independiente. La APK definitiva debe acreditarse con la firma original y una prueba de instalación, sin confundirla con debug.
+
+> **Control 3:** tres aplicaciones Spring Boot independientes: ventas (8080), retiro (8081) y notificaciones (8082). Consultar [MICROSERVICIOS_CONTROL3.md](MICROSERVICIOS_CONTROL3.md) y [el informe de revisión final](INFORME_VERSION_FINAL_CONTROL3.md). La release del 25/11 está firmada con el certificado original y verificada en un AVD independiente. La APK anterior se conserva intacta.
 
 # OYL Frutos Secos
+
+## Comandos de presentación
+
+Ejecutar desde la raíz. El inicio solicita las claves en entradas ocultas; si los puertos ya están ocupados, usar directamente la comprobación, sin detener los servicios existentes.
+
+```powershell
+.\scripts\iniciar-microservicios.ps1 -VisibleConsoles
+.\scripts\comprobar-microservicios.ps1 -OrderId 'ec121ba3-466c-4ebc-9d26-bfeece0143bc'
+Invoke-RestMethod 'http://127.0.0.1:8080/api/orders/ec121ba3-466c-4ebc-9d26-bfeece0143bc/notifications'
+.\gradlew.bat :server:test :pickup-service:test :notification-service:test :app:testDebugUnitTest :app:jacocoDebugLogicReport --console=plain
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\tests\comprobar-microservicios.Tests.ps1
+# Opcional: procesos, puertos y H2 exclusivos de prueba; no utiliza los servicios de la demostración.
+.\gradlew.bat :server:bootJar :pickup-service:bootJar :notification-service:bootJar --console=plain
+python .\scripts\tests\comprobar-integracion-aislada.py
+```
+
+Reportes HTML: `app/build/reports/tests/testDebugUnitTest/index.html`, `app/build/reports/jacoco/jacocoDebugLogicReport/html/index.html`, `app/build/reports/androidTests/connected/debug/index.html` y `<modulo>/build/reports/tests/test/index.html`. El 25/11 se reejecutaron las 249 pruebas JVM (221 Android y 20/4/4 de servicios), todas aprobadas. Los 80 resultados instrumentados conservados corresponden a la ejecución anterior; no ejecutarlos sobre un AVD con datos sin respaldo. Las 20 comprobaciones aisladas son adicionales, no se suman como pruebas JUnit.
+
+Firma alternativa al asistente Android Studio: después de `:app:assembleRelease`, ejecutar `powershell -ExecutionPolicy Bypass -File .\scripts\firmar-release.ps1`. Requiere la contraseña original y verifica la huella antes de acreditar la APK. No crear otro keystore. La base predeterminada `http://10.0.2.2:8080/` corresponde al emulador en este PC; los servicios 8081/8082 se consultan a través de ventas. Un teléfono físico requiere una configuración de red distinta.
 
 Proyecto académico de **DSY1105 — Desarrollo de Aplicaciones Móviles**, Evaluación Parcial 4 (6 %), entrega Control 3. Repositorio: [ItsFabix/OYLFrutosSecos](https://github.com/ItsFabix/OYLFrutosSecos). Rama de trabajo: `control3-tres-microservicios` (la original `control3-integracion` se mantiene intacta).
 
@@ -20,6 +41,7 @@ OYL permite consultar frutos secos, semillas y deshidratados, administrar un car
 - Perfil editable en SQLite, notificaciones locales y lector QR con resultados visibles y cancelación silenciosa.
 - Puntos de retiro con vista inicial Ver todos, selección Centro/Ñuñoa y clima Open-Meteo independiente.
 - Cuenta → Configuración administrativa, exclusivamente ADMIN. La clave se introduce enmascarada, se conserva en memoria y se elimina al cerrar sesión o terminar el proceso. Las operaciones protegidas ofrecen configurar el acceso cuando falta autorización.
+- Textos orientados al cliente y estados en español. Las notificaciones antiguas se normalizan al mostrarlas sin reescribir el historial; el seguimiento remoto permanece separado de los avisos SQLite. Las herramientas de comprobación de avisos se reservan a ADMIN dentro de Preferencias de notificaciones.
 
 ## Tecnologías y arquitectura
 
@@ -64,7 +86,7 @@ Base local para el PC: `http://127.0.0.1:8080/`. Para el emulador: `http://10.0.
 | GET | `/api/products` | Catálogo y existencias actuales. | Público |
 | POST | `/api/orders` | Registrar pedido; validar y descontar stock transaccionalmente con requestId idempotente. | Público |
 | GET | `/api/orders/{id}` | Consultar pedido y estado por UUID. | Público por UUID |
-| GET | `/api/pickup-points` | Puntos de retiro reales desde `:pickup-service` (ficticios para la demo). | Público |
+| GET | `/api/pickup-points` | Consulta HTTP delegada a `:pickup-service`; ubicaciones de ejemplo. | Público |
 | GET | `/api/orders/{id}/notifications` | Eventos del pedido desde `:notification-service`. | Público por UUID |
 | POST/PUT/DELETE | `/api/admin/pickup-points/{id}` | CRUD del servicio de retiro delegado vía HTTP. | ADMIN |
 | GET | `/api/admin/orders` | Listar todos los pedidos del servidor. | ADMIN |
@@ -74,7 +96,7 @@ Base local para el PC: `http://127.0.0.1:8080/`. Para el emulador: `http://10.0.
 | GET | `/api/admin/inventory/movements` | Listar movimientos de inventario. | ADMIN |
 | POST | `/api/admin/products/{id}/stock` | Registrar entrada o salida; rechazar stock negativo. | ADMIN |
 
-Las seis rutas ADMIN exigen la cabecera `X-OYL-ADMIN-KEY`, comparada en el servidor con `OYL_ADMIN_KEY` de al menos 16 caracteres. El servidor devuelve 403 cuando falta o es incorrecta. La aplicación valida pedidos y movimientos antes de conservar la clave. No se incorporan claves privadas al APK ni se guardan en SQLite o preferencias.
+Las rutas ADMIN exigen la cabecera `X-OYL-ADMIN-KEY`, comparada en el servidor con `OYL_ADMIN_KEY` de al menos 16 caracteres. El servidor devuelve 403 cuando falta o es incorrecta. La aplicación valida el acceso mediante lecturas de pedidos y movimientos antes de conservar la clave. No se incorporan claves privadas al APK ni se guardan en SQLite o preferencias.
 
 El POST de pedidos requiere `requestId` UUID, `customerAlias`, `items` con `productId`/`quantity`, `delivery` (`PICKUP` o `DELIVERY`) y datos de contacto. Un reintento debe conservar la solicitud exacta y el mismo UUID. Un UUID reutilizado con otro contenido se rechaza. No hay endpoint DELETE ni eliminación de productos desde la interfaz.
 
@@ -98,30 +120,32 @@ Sin servidor siguen disponibles usuarios/sesión/perfil, datos locales y la últ
 
 ## Requisitos de ejecución
 
-Para el repositorio completo: Android Studio con soporte de AGP 8.12.3, Android SDK Platform 36, herramientas de compilación/SDK y JDK 17 o 21. Gradle usa el wrapper incluido y requiere Internet para descargar dependencias la primera vez. El backend aislado del ZIP no requiere Android SDK. `local.properties` se genera localmente por Android Studio y no se distribuye.
+Para el repositorio completo: Android Studio con soporte de AGP 8.12.3, Android SDK Platform 36, herramientas de compilación/SDK y JDK 21 recomendado. Gradle usa el wrapper incluido y requiere Internet para descargar dependencias la primera vez. `local.properties` se genera localmente por Android Studio y no se distribuye. Los ZIP de entregas anteriores deben actualizarse para incluir los tres módulos y los archivos raíz necesarios; todavía no acreditan esta versión.
 
 ### Iniciar Spring Boot
 
-Desde la raíz del repositorio completo o desde la raíz del ZIP Spring Boot ya extraído, en PowerShell:
+Desde la raíz del repositorio completo, en Windows PowerShell:
 
 ```powershell
-$env:OYL_ADMIN_KEY = [System.Net.NetworkCredential]::new('', (Read-Host 'Clave de administración del servidor' -AsSecureString)).Password
-.\gradlew.bat :server:bootRun --console=plain
+powershell -ExecutionPolicy Bypass -File .\scripts\iniciar-microservicios.ps1 -VisibleConsoles
 ```
 
-Elegir una clave propia de al menos 16 caracteres; no copiar su valor a archivos ni al historial de comandos. Para terminar, Ctrl+C y retirar la variable de esa terminal con `Remove-Item Env:OYL_ADMIN_KEY`. En una segunda terminal:
+El script pide un token interno común (`OYL_SERVICE_TOKEN`) y una clave administrativa (`OYL_ADMIN_KEY`), ambos de al menos 16 caracteres, sin mostrarlos. Los procesos heredan esas variables; el script restaura el entorno de la consola de origen al terminar. No copiar valores a archivos, argumentos ni al historial. `-VisibleConsoles` permite ver el arranque y terminar cada proceso con Ctrl+C cuando corresponda; sin ese parámetro se abren ocultos. El script rechaza puertos ocupados sin detener servicios existentes. Si ya están activos, usar directamente la comprobación:
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:8080/api/health
-Invoke-RestMethod http://127.0.0.1:8080/api/products
+powershell -ExecutionPolicy Bypass -File .\scripts\comprobar-microservicios.ps1
+# Opcional: UUID remoto completo, no el numero de pedido #5 mostrado en Android.
+powershell -ExecutionPolicy Bypass -File .\scripts\comprobar-microservicios.ps1 -OrderId a9209d94-cc09-43fb-ad38-0fa9788eca72
 ```
 
-Debe responder salud `ok` y un catálogo con ocho productos en una base vacía. No borrar una base persistente para repetir esa comprobación; usar una base aislada de pruebas. Alternativa JAR: `:server:bootJar` y `java -jar server/build/libs/server-0.0.1-SNAPSHOT.jar` desde un directorio estable. Mantener la misma variable de entorno y no cambiar el directorio que determina la ubicación de H2.
+Comprueba salud, al menos ocho productos y dos puntos, igualdad del contenido directo/delegado, UTF-8 y, cuando se indica un UUID existente, sus eventos. El UUID del ejemplo pertenece a la prueba manual de este entorno; en otra base usar el propio. Distingue conexión rechazada, timeout, HTTP 404 y JSON inválido. No borra ni escribe datos.
+
+Alternativa: en tres terminales independientes configurar el mismo token interno y ejecutar `:pickup-service:bootRun`, `:notification-service:bootRun` y `:server:bootRun`; ventas también necesita la clave administrativa. Ver instrucciones completas en [microservicios](MICROSERVICIOS_CONTROL3.md). No borrar H2 para repetir la carga inicial; las pruebas usan bases aisladas.
 
 ### Ejecutar Android
 
 1. Extraer el ZIP Android completo y abrir su carpeta raíz (con `settings.gradle.kts`) en Android Studio, o abrir el repositorio completo. Sincronizar Gradle, instalar Platform 36 y configurar el SDK localmente.
-2. Iniciar un AVD con Google Play y API 26 o superior; se recomienda un AVD actual con acceso a Internet. Iniciar primero Spring Boot en el PC.
+2. Iniciar un AVD con Google Play y API 26 o superior; se recomienda un AVD actual con acceso a Internet. Iniciar primero los tres servicios en el PC.
 3. Para ejecutar desde código, seleccionar módulo `app` y Run en Android Studio. La URL predeterminada es `http://10.0.2.2:8080/`. La APK release de entrega se distribuye por separado y no se reconstruye al preparar los ZIP.
 4. Registrar un cliente desde la aplicación y probar catálogo/carrito. La cuenta ADMIN de demostración ya existe en la base local; sus datos de demostración están definidos en `OylDatabase.onCreate` y las instrucciones privadas de entrega.
 5. Como ADMIN, entrar en Cuenta → Configuración administrativa e introducir la misma clave temporal del servidor. Conectar y volver a Inventario/Pedidos. No se pide otra vez durante la sesión autorizada; un HTTP 401/403 la invalida.
@@ -131,7 +155,7 @@ Debe responder salud `ok` y un catálogo con ocho productos en una base vacía. 
 ## Demostración cliente y administrador
 
 1. Cliente: registrar/iniciar sesión, elegir un producto con stock, añadir cantidad al carrito y confirmar el pedido.
-2. Comprobar número REST y estado Pendiente; consultar catálogo para ver el stock descontado por el servidor.
+2. Comprobar número de pedido y estado Pendiente; consultar catálogo para ver el stock descontado por el servidor.
 3. Cerrar sesión, entrar como ADMIN y configurar el acceso desde Cuenta. Consultar todos los pedidos y los movimientos de inventario.
 4. Avanzar el pedido a Confirmado, Preparado y Entregado; registrar una reposición si se desea y verificar existencias.
 5. Volver al cliente original y actualizar Mis pedidos: debe ver el estado nuevo, sin duplicados ni pedidos de otros usuarios locales.
@@ -139,22 +163,26 @@ Debe responder salud `ok` y un catálogo con ocho productos en una base vacía. 
 
 ## Pruebas y cobertura
 
-Resultados disponibles: 126 pruebas unitarias Android aprobadas, 16 pruebas de UI/navegación de la última corrección administrativa y una sonda Retrofit real GET que confirmó protección HTTP 403. La actualización del mapa tiene una ejecución previa de 11 pruebas y la integración REST/SQLite una previa de 25; son ejecuciones de alcance distinto y se solapan, por lo que no se suman como pruebas únicas. Spring Boot dispone de 15 pruebas aprobadas sobre SQL, stock, idempotencia y protección administrativa.
-
-**No existe todavía una medición acreditada del 80 % de cobertura Android para esta rama.** Para obtenerla ejecutar `.\\gradlew.bat :app:jacocoDebugLogicReport` y abrir `app/build/reports/jacoco/jacocoDebugLogicReport/html/index.html`. El informe cuenta clases de lógica (domain, data/repository, ui/viewmodel); conservar el reporte con la evidencia. Cantidad de pruebas aprobadas no equivale a porcentaje de cobertura. Los reportes HTML/JUnit y logs se entregan como evidencias de ejecución, con su alcance identificado.
+La medición de JaCoCo y los conteos exactos de la revisión están en [INFORME_COBERTURA_CONTROL3.md](INFORME_COBERTURA_CONTROL3.md) y [el informe final](INFORME_VERSION_FINAL_CONTROL3.md). Se evalúan `domain`, `data/repository` y `ui/viewmodel`; no toda la aplicación ni el backend. Se conservan las 114 clases originales y se agrega la lógica de presentación. El objetivo indicado es al menos 80 % de instrucciones y líneas. Las pruebas aprobadas no equivalen a un porcentaje de cobertura.
 
 ```powershell
-.\gradlew.bat :app:testDebugUnitTest --console=plain
-.\gradlew.bat :app:connectedDebugAndroidTest --console=plain
-.\gradlew.bat :server:test --console=plain
+.\gradlew.bat :server:test :pickup-service:test :notification-service:test :app:testDebugUnitTest --console=plain
+.\gradlew.bat :app:jacocoDebugLogicReport --console=plain
+.\gradlew.bat :app:assembleDebug --console=plain
+.\gradlew.bat :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.oylReadOnlyProbeUrl=http://10.0.2.2:8080/' --console=plain
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\tests\comprobar-microservicios.Tests.ps1
 git diff --check
 ```
 
-Ejecutar instrumentación en un AVD dedicado: la instalación/reinstalación de pruebas puede afectar datos. Las sondas opcionales necesitan los argumentos indicados en sus clases; las pruebas REST que escriben deben usar un backend y H2 aislados. Los ZIP individuales incluyen solo el módulo correspondiente: las tareas del otro módulo se ejecutan en su propio ZIP o en el repositorio completo.
+Abrir `app/build/reports/jacoco/jacocoDebugLogicReport/html/index.html`, los reportes `build/reports/tests/` de cada módulo y `app/build/reports/androidTests/connected/debug/index.html`. Las pruebas SQLite usan archivos temporales; las de microservicios usan H2 independiente y destinatarios HTTP de prueba. La sonda opcional del emulador solo hace GET a los servicios activos. Confirmar identidad de firma antes de actualizar una app instalada; no desinstalar ni borrar datos para hacer pasar una prueba.
+
+La revisión detectó que AGP desinstala las APK al finalizar instrumentación de forma predeterminada. Se agregó `android.injected.androidTest.leaveApksInstalledAfterRun=true` a `gradle.properties` y al helper para impedir esa limpieza en futuras ejecuciones. Usar un AVD dedicado y respaldar sus datos antes de instrumentar; la coincidencia de firmas no evita por sí sola la limpieza del runner. El incidente ocurrido y sus límites de recuperación se documentan en el informe final.
 
 ## APK release y firma
 
-El repositorio conserva una APK release firmada **de la versión anterior**. Esta versión de microservicios requiere **recompilar Android y firmar nuevamente** antes de declarar un APK actualizado. La firma antigua no demuestra las nuevas pantallas ni consultas REST. La entrega anterior incluía una APK release firmada existente, copiada sin reconstruirla. `apksigner verify --verbose app-release.apk` verifica su firma; el SHA-256 permite comprobar que la copia coincide con el original. `app/build.gradle.kts` no contiene signingConfig con credenciales: la firma se realizó mediante el asistente de Android Studio y una llave privada externa. Para reproducir exactamente esa identidad de firma se requiere el keystore y alias originales, custodiados fuera del repositorio. No se incluyen llaves ni credenciales de firma.
+El repositorio conserva `app/release/app-release.apk` de la versión anterior, sin modificarla. La nueva release del 25/11 se generó con Android Studio y el keystore original. Se verificó con apksigner, se compararon sus DEX/recursos/manifest con la compilación actual y se instaló en `OYL_Release_Control3`, sin reemplazar ninguna instalación previa. Allí se comprobó compra, descuento de stock, los cuatro estados desde administración, seguimiento remoto y persistencia de sesión/historial tras reiniciar la app.
+
+El artefacto privado está en `%USERPROFILE%\Documents\OYL-Control3\OYL-Control3-release-20261125.apk`. SHA-256 del archivo: `3cb01e22cd78064cd7d5c12d53c8e859c59652a871c94b0015ca7a3b6083dbe3`. Certificado SHA-256, idéntico al anterior: `9d1c01df179ec7901200ce8d8f373cb1dcfb2146404a20dffe9711b313131547`. La copia instalada también coincide byte a byte. `app/build.gradle.kts` no contiene signingConfig con credenciales; se utiliza una llave externa. Para volver a firmar se requieren el keystore, alias y contraseñas originales mediante entradas privadas, sin incluirlos en Git.
 
 Para instalar la release, usar un AVD de pruebas sin datos importantes. Si existe una instalación debug con otra firma, Android puede rechazar la actualización. No desinstalar ni borrar sus datos para resolverlo: usar otro AVD o un dispositivo de prueba apropiado. No reemplazar el APK ya firmado por una compilación debug.
 
@@ -162,13 +190,13 @@ Para instalar la release, usar un AVD de pruebas sin datos importantes. Si exist
 
 GitHub conserva el código y ramas del proyecto. Trello se utiliza para acreditar planificación y distribución de tareas; el enlace del tablero, los responsables y su captura real deben completarse en la documentación privada de entrega. No se inventa un tablero ni se presume una distribución no acreditada.
 
-El Word privado de entrega contiene los espacios de integrantes, RUT y capturas de firma/Trello. No debe publicarse con datos personales en GitHub. Los ZIP de código excluyen builds, cachés, `local.properties`, keystores y bases locales de ejecución. Cada paquete lleva wrapper y archivos raíz de Gradle; sus ajustes de empaquetado se explican en `EMPAQUETADO.md`.
+El Word privado de entrega debe completarse con integrantes, RUT y capturas reales de firma/Trello y actualizarse a los resultados de esta rama. No debe publicarse con datos personales en GitHub. Al preparar los ZIP de código, excluir builds, cachés, `local.properties`, keystores y bases locales de ejecución, e incluir wrappers y archivos raíz de Gradle necesarios para reconstruir los módulos. Los ZIP antiguos siguen pendientes de actualización; no se regeneraron en esta revisión. La APK actual se distribuye por separado.
 
 ## Límites conocidos
 
-- Backend único modular, no múltiples microservicios independientes; el requisito requiere confirmación de la pauta.
+- Tres procesos Spring Boot independientes, con tres bases H2 y comunicación HTTP. La correspondencia con los criterios académicos exactos debe contrastarse con la pauta oficial, no disponible en este repositorio.
 - Autenticación local y clave administrativa compartida de desarrollo; no hay identidad remota segura ni sincronización de usuarios entre dispositivos.
 - El GET de pedido se consulta por UUID, sin autenticación remota del cliente; no es un despliegue de producción.
 - Creación/lectura/actualización de productos y movimientos disponibles; no existe DELETE.
-- No se acredita cobertura Android del 80 %. La firma válida no prueba por sí sola correspondencia binaria reproducible con el código sin el entorno y keystore originales.
+- La cobertura acreditada se limita a los paquetes indicados. La firma válida no prueba por sí sola correspondencia de una APK anterior con el código actual.
 - Mapas con referencias y horarios de demostración. La lectura óptica real de QR depende del dispositivo/Google Play; sus eventos y resultados se probaron mediante simulación.

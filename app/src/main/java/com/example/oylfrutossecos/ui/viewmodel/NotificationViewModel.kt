@@ -90,11 +90,11 @@ class NotificationViewModel(private val repository: NotificationRepository,
                 val notified = try { onCreated(notice) } catch (_: Exception) { false }
                 val items = repository.list(userId)
                 mutable.update { it.copy(items = items, busy = false,
-                    message = if (notified) "Aviso guardado y enviado a Android."
+                    message = if (notified) "Aviso de comprobación enviado."
                         else "Aviso guardado. Para verlo también fuera de la app, permite las notificaciones.") }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (_: Exception) {
-                mutable.update { it.copy(busy = false, error = "No se pudo crear el aviso de prueba.") }
+                mutable.update { it.copy(busy = false, error = "No se pudo crear el aviso. Intenta nuevamente.") }
             }
         }
     }

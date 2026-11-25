@@ -33,7 +33,7 @@ fun AdminAccessPanel(configured: Boolean, enabled: Boolean, onConnect: (String) 
                 }
             }
             if (!configured || replacing) {
-                Text("Introduce la clave de administración del servidor (OYL_ADMIN_KEY de Spring Boot, mínimo 16 caracteres).",
+                Text("Introduce la clave de acceso proporcionada por la administración (mínimo 16 caracteres).",
                     style = MaterialTheme.typography.bodySmall)
                 OutlinedTextField(value, { value = it }, label = { Text("Clave administrativa") },
                     singleLine = true, visualTransformation = PasswordVisualTransformation(),
@@ -44,7 +44,7 @@ fun AdminAccessPanel(configured: Boolean, enabled: Boolean, onConnect: (String) 
                     Text(if (validating) "Validando acceso…" else "Conectar administración")
                 }
             }
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            error?.let { Text(storeMessage(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             if (configured) TextButton(onClick = { value = ""; onClear() }, enabled = enabled && !validating) {
                 Text("Desconectar acceso")
             }
@@ -70,7 +70,7 @@ fun AdminAccessRequired(title: String, onBack: () -> Unit, onConfigure: () -> Un
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)) {
         ReferenceTitle(title, onBack)
-        InfoBanner("Acceso administrativo requerido", "Para continuar, conecta el acceso de administración. Si ya lo habías configurado, el servidor necesita que lo valides nuevamente.")
+        InfoBanner("Acceso administrativo requerido", "Para continuar, valida tu acceso de administración. Puedes configurarlo aquí sin cerrar sesión.")
         Button(onClick = onConfigure) { Text("Configurar acceso") }
     }
 }

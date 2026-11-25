@@ -1,5 +1,7 @@
 # Control 3 — tres microservicios Spring Boot
 
+> **Cierre 25/11:** la tabla de notificaciones estaba vacía; ventas conservaba los cuatro eventos originales ya reconocidos en su outbox. Con respaldos H2 previos, se reenviaron exactamente esos registros y se acreditó su persistencia en una copia H2. La ruta y los tokens coincidían; no hay auditoría suficiente para atribuir el vaciado a una acción concreta. El publicador reintenta pendientes, no eventos ya reconocidos. También aprobaron 20 comprobaciones aisladas de compra, estados, caída/recuperación y reinicio de las tres H2; ejecutables con `scripts/tests/comprobar-integracion-aislada.py`. Los servicios de demostración no fueron reiniciados.
+
 ## Arquitectura real
 
 | Módulo Gradle | Puerto | Base de datos H2 independiente | Responsabilidad |
@@ -23,15 +25,17 @@ Abrir **la raíz del repositorio completo** de la rama control3-tres-microservic
 1. Usar Java 21. El JBR incluido con Android Studio funciona.
 2. Desde la raíz ejecutar en PowerShell:
 
-    powershell -ExecutionPolicy Bypass -File .\scripts\iniciar-microservicios.ps1
+    powershell -ExecutionPolicy Bypass -File .\scripts\iniciar-microservicios.ps1 -VisibleConsoles
 
-3. Ingresar un token interno de 16 caracteres o más y la clave del administrador (16 caracteres o más) cuando el script lo pida. Las variables se heredan por las tres ventanas nuevas sin mostrarlas en argumentos.
+3. Ingresar un token interno de 16 caracteres o más y la clave del administrador (16 caracteres o más) cuando el script lo pida. Las variables se heredan por las tres ventanas nuevas sin mostrarlas en argumentos y se retiran de la consola de origen al finalizar. Sin `-VisibleConsoles`, las consolas se abren ocultas; para la demostración se recomienda el parámetro explícito.
 4. Comprobar que cada ventana termina con Started y que los tres puertos responden.
 5. Iniciar el emulador Android y la app. La base Retrofit sigue siendo http://10.0.2.2:8080/.
 
+El script rechaza puertos 8080/8081/8082 ocupados; no detiene los procesos existentes ni vuelve a pedir claves para iniciarlos encima. Si ya están activos, ejecutar solo `scripts/comprobar-microservicios.ps1`.
+
 También se pueden arrancar en tres PowerShell independientes con .\gradlew.bat :pickup-service:bootRun, .\gradlew.bat :notification-service:bootRun y .\gradlew.bat :server:bootRun. Las tres necesitan el mismo OYL_SERVICE_TOKEN para notificaciones y operaciones internas; :server necesita OYL_ADMIN_KEY para la administración.
 
-**El APK antiguo no incorpora la consulta remota del mapa.** Ejecutar desde Android Studio el código de esta rama, o volver a generar un APK release **firmado** para presentar esa funcionalidad. No reutilizar una firma anterior declarando que se recompiló.
+**El APK antiguo no incorpora la consulta remota del mapa.** Usar la nueva release del 25/11, firmada con el certificado original, cuyo código se comparó con la compilación de esta rama y se probó en `OYL_Release_Control3`. El archivo anterior se conserva por separado; no sustituye esta versión.
 
 ## Pruebas de humo manuales
 
@@ -41,6 +45,7 @@ También se pueden arrancar en tres PowerShell independientes con .\gradlew.bat 
 - http://127.0.0.1:8080/api/pickup-points — la misma respuesta delegada por HTTP desde ventas
 - http://127.0.0.1:8080/api/products — catálogo
 - Verificar los cuatro endpoints automáticamente con scripts/comprobar-microservicios.ps1
+- En Windows PowerShell, `powershell -ExecutionPolicy Bypass -File .\scripts\comprobar-microservicios.ps1 -OrderId UUID_REMOTO` consulta además los eventos. Sustituir `UUID_REMOTO` por el UUID completo que devuelve la API, no por el número `#5` de Android. Se decodifica UTF-8 y se compara el contenido de los puntos, con orden de propiedades estable.
 - Android > Mapa — debe mostrar los puntos ofrecidos por la API.
 - Android > Carrito > Confirmar pedido — se descuenta el stock en ventas.
 - http://127.0.0.1:8080/api/orders/UUID_REAL_DEL_PEDIDO/notifications — debe listar el evento remoto después de publicarse.
@@ -62,17 +67,17 @@ En producción se necesitarían autenticación por usuarios, HTTPS, autenticaci�
 
 Ejecutar en la raíz: .\gradlew.bat :server:test :pickup-service:test :notification-service:test; después .\gradlew.bat :app:testDebugUnitTest. Pruebas instrumentadas con emulador activo: .\gradlew.bat :app:connectedDebugAndroidTest. Los reportes HTML se generan en las carpetas build/reports/tests respectivas. Para la cobertura de lógica Android ejecutar .\\gradlew.bat :app:jacocoDebugLogicReport y abrir app/build/reports/jacoco/jacocoDebugLogicReport/html/index.html.
 
-La pauta del Control 3 exige **80 % de cobertura de código lógico Android**. Los conteos de tests pasados no demuestran ese porcentaje; hay que generar y documentar una medición de cobertura, o declararlo explícitamente como pendiente.
+El objetivo comunicado para esta revisión es **80 % de instrucciones y líneas de lógica Android**. No se encontró la pauta oficial en el repositorio: confirmar su métrica y condiciones originales. Los resultados medidos y sus límites están en [INFORME_COBERTURA_CONTROL3.md](INFORME_COBERTURA_CONTROL3.md) y [INFORME_VERSION_FINAL_CONTROL3.md](INFORME_VERSION_FINAL_CONTROL3.md). Los conteos de tests aprobados no se usan como porcentaje de cobertura.
 
 ## Checklist de entrega
 
-- [ ] Confirmar arranque de los tres procesos y consulta a las tres bases independientes.
-- [ ] Ejecutar pruebas JUnit de los tres servicios, y capturar reportes.
+- [x] Confirmar respuesta de los tres procesos activos; bases independientes verificadas con pruebas de persistencia aisladas.
+- [x] Ejecutar pruebas JUnit de los tres servicios y generar reportes.
 - [ ] Probar la consulta del mapa, CRUD del catálogo/inventario, compra y estados.
-- [ ] Demostrar evento de pedido y reintento si 8082 no está disponible.
-- [ ] Ejecutar pruebas Android y medir/documentar cobertura real (80 %).
-- [ ] Generar de nuevo APK release firmado con un .jks propio y verificar instalación offline de Metro.
+- [x] Verificar eventos y reintento ante indisponibilidad mediante pruebas HTTP aisladas, sin detener 8082 del usuario.
+- [x] Ejecutar pruebas JVM Android y medir/documentar cobertura real superior al 80 % de instrucciones y líneas del alcance indicado.
+- [x] Release del 25/11 generada con el keystore original, firma/código verificados e instalada en un AVD vacío independiente; compra y administración comprobadas.
 - [ ] README, integrantes y endpoints; evidencia de firma, GitHub y Trello.
-- [ ] Confirmar con el profesor la autorización de cambio de entrega: la pauta advierte sanciones por commits posteriores al cierre formal.
+- [ ] Contrastar con la pauta oficial los plazos, cambios permitidos y evidencias exigidas antes de publicar la entrega.
 
-La clave .jks debe manejarse con cuidado: la pauta solicita entregarla, pero no corresponde publicarla con contraseñas en texto plano en un repositorio público.
+El keystore y sus contraseñas no se publican en GitHub. Si la pauta original exige entregarlos, acordar un canal privado apropiado y conservar la identidad de firma existente.

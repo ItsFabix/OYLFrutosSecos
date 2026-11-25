@@ -12,7 +12,7 @@ class InventoryRepository(private val database: OylDatabase, private val api: Oy
     private val adminKey: () -> String = { "" }) {
     suspend fun products(): List<Product> = ProductRepository(database, api, adminKey).getProducts()
     suspend fun movements(productId: Long? = null): List<InventoryMovement> = withContext(Dispatchers.IO) {
-        check(adminKey().isNotBlank()) { "Introduce la clave administrativa para consultar los movimientos REST." }
+        check(adminKey().isNotBlank()) { "Valida tu acceso administrativo para consultar los movimientos." }
         val products = database.readProducts().mapNotNull { product -> product.remoteId?.let { it to product.id } }.toMap()
         api.inventoryMovements(adminKey()).map { movement ->
             InventoryMovement(movement.id, products[movement.productId] ?: movement.productId, movement.productName,
@@ -25,7 +25,7 @@ class InventoryRepository(private val database: OylDatabase, private val api: Oy
         check(adminKey().isNotBlank()) { "Introduce la clave administrativa para registrar movimientos." }
         require(quantity in 1..10000 && note.trim().length in 3..200) { "Revisa la cantidad y el motivo del movimiento." }
         val remote = database.readProducts().firstOrNull { it.id == productId }?.remoteId
-            ?: error("Producto sin vínculo REST.")
+                ?: error("Este producto ya no está disponible. Actualiza el catálogo.")
         api.adjustStock(remote, ApiStockChange(if (type == MovementType.ENTRY) quantity else -quantity, note.trim()), adminKey())
         // El servidor ya confirmó: un fallo de refresco no convierte el movimiento en fallido.
         try { products() } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }

@@ -19,6 +19,7 @@ import com.example.oylfrutossecos.ui.components.*
 import com.example.oylfrutossecos.ui.viewmodel.OrderUiState
 import com.example.oylfrutossecos.data.remote.OylRestClient
 import com.example.oylfrutossecos.data.remote.ApiOrderEvent
+import com.example.oylfrutossecos.domain.StorePresentation
 import kotlinx.coroutines.CancellationException
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -60,7 +61,7 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Icon(Icons.AutoMirrored.Filled.ReceiptLong, null, Modifier.size(26.dp), tint = MaterialTheme.colorScheme.primary)
                         Column(Modifier.weight(1f)) {
-                            Text(order.remoteOrderId?.let { "Pedido REST #${it.take(8)}" } ?: "Pedido local #${order.id}",
+                            Text(StorePresentation.orderTitle(order),
                                 style = MaterialTheme.typography.labelLarge)
                             Text(SimpleDateFormat("dd/MM/yyyy", Locale("es", "CL")).format(Date(order.createdAt)),
                                 style = MaterialTheme.typography.labelSmall)
@@ -73,7 +74,7 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
                     }
                     TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Ocultar detalle" else "Ver detalle") }
                     if (expanded) {
-                        Text(if (order.remoteOrderId == null) "Histórico local · no registrado en Spring Boot" else "Pedido REST #${order.remoteOrderId}",
+                        Text(if (order.remoteOrderId == null) "Pedido anterior · guardado en este dispositivo" else "Pedido registrado",
                             style = MaterialTheme.typography.bodySmall)
                         Text(order.delivery.displayName, style = MaterialTheme.typography.bodySmall)
                         if (admin) {
@@ -83,7 +84,7 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
                         order.lines.forEach { line -> Text("${line.quantity} × ${line.name} · ${priceInPesos(line.subtotalClp)}",
                             style = MaterialTheme.typography.bodySmall) }
                         order.remoteOrderId?.let { remoteId ->
-                            RemoteOrderEvents(remoteId, order.status)
+                            RemoteOrderEvents(remoteId, order.status, order.delivery)
                         }
                     }
                     if (admin && order.status.next() != null) {
@@ -100,9 +101,12 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
 
 /** Evidencia de integración Android -> ventas :8080 -> notificaciones :8082. */
 @Composable
-private fun RemoteOrderEvents(orderId: String, status: OrderStatus) {
+private fun RemoteOrderEvents(orderId: String, status: OrderStatus, delivery: DeliveryMethod) {
     var error by remember(orderId, status) { mutableStateOf(false) }
-    val events by produceState<List<ApiOrderEvent>?>(initialValue = null, key1 = orderId, key2 = status) {
+    var retry by remember(orderId) { mutableIntStateOf(0) }
+    val events by produceState<List<ApiOrderEvent>?>(initialValue = null, orderId, status, retry) {
+        error = false
+        value = null
         value = try {
             OylRestClient.service.orderEvents(orderId)
         } catch (cancelled: CancellationException) {
@@ -113,24 +117,21 @@ private fun RemoteOrderEvents(orderId: String, status: OrderStatus) {
         }
     }
     HorizontalDivider()
-    Text("Eventos del microservicio", style = MaterialTheme.typography.labelMedium,
+    Text("Seguimiento del pedido", style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.primary)
     when {
         events == null -> LinearProgressIndicator(Modifier.fillMaxWidth())
-        error -> Text("El servicio de notificaciones no está disponible.",
+        error -> {
+            Text("No pudimos actualizar el seguimiento. Tu pedido sigue registrado.", style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = { retry++ }) { Text("Reintentar seguimiento") }
+        }
+        events!!.isEmpty() -> Text("El seguimiento de tu pedido aparecerá aquí.",
             style = MaterialTheme.typography.bodySmall)
-        events!!.isEmpty() -> Text("Aún no hay eventos remotos para este pedido.",
-            style = MaterialTheme.typography.bodySmall)
-        else -> events!!.forEach { event ->
-            val state = when (event.status) {
-                "PENDING" -> "Pendiente"
-                "CONFIRMED" -> "Confirmado"
-                "PREPARED" -> "Preparado"
-                "DELIVERED" -> "Entregado"
-                else -> event.status
-            }
-            Text("• " + (if (event.kind == "ORDER_CREATED") "Pedido creado" else "Cambio de estado")
-                + ": " + state, style = MaterialTheme.typography.bodySmall)
+        else -> events!!.distinctBy { it.eventId }.sortedBy { it.createdAt }.forEach { event ->
+            Text("• ${StorePresentation.eventTitle(event.status)}", style = MaterialTheme.typography.labelMedium)
+            Text(StorePresentation.eventMessage(event.status, delivery.name), style = MaterialTheme.typography.bodySmall)
+            Text(SimpleDateFormat("dd/MM/yyyy · HH:mm", Locale("es", "CL")).format(Date(event.createdAt)),
+                style = MaterialTheme.typography.labelSmall)
         }
     }
 }

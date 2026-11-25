@@ -123,7 +123,7 @@ fun PickupMapScreen(weatherState: PickupWeatherState = PickupWeatherState(),
         visiblePoints.forEach { item ->
             mapView.overlays.add(Marker(mapView).apply {
                 position = GeoPoint(item.latitude, item.longitude)
-                title = item.title
+                title = item.title.removeSuffix(" (demo)")
                 snippet = item.reference
                 icon = markers.getValue(item.id == selectedId)
                 alpha = if (selectedId == null || item.id == selectedId) 1f else 0.65f
@@ -202,7 +202,7 @@ fun PickupMapScreen(weatherState: PickupWeatherState = PickupWeatherState(),
                     points.forEach { item ->
                         Text("${item.title.removeSuffix(" (demo)")} · ${item.reference}", style = MaterialTheme.typography.bodySmall)
                     }
-                    Text("Selecciona un local para ver su horario, indicaciones y clima Open-Meteo.",
+                    Text("Selecciona un local para ver su horario, indicaciones y el tiempo actual.",
                         style = MaterialTheme.typography.bodySmall)
                 } else {
                     Text(point.title.removeSuffix(" (demo)"), style = MaterialTheme.typography.titleSmall)
@@ -220,7 +220,7 @@ fun PickupMapScreen(weatherState: PickupWeatherState = PickupWeatherState(),
                 TextButton(onClick = { point?.let { openExternal(DemoPickupPoints.browserMapUrl(it)) } },
                     enabled = point != null) { Text("Abrir mapa en el navegador") }
                 externalError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                Text("Puntos y horarios referenciales. © OpenStreetMap contributors. Requiere Internet.",
+                Text("Ubicaciones y horarios de ejemplo; no corresponden a sucursales reales. Clima: Open-Meteo. © OpenStreetMap contributors.",
                     style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

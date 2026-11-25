@@ -211,7 +211,7 @@ fun StoreNavigation(user: User, busy: Boolean, error: String?, onLogout: () -> U
                     onTest = { notices.createTest { notice ->
                         DemoLocalNotifier.show(context, notice)
                     } },
-                    permissionGranted = permissionGranted,
+                    permissionGranted = permissionGranted, showDiagnostics = admin,
                     onRequestPermission = {
                         if (android.os.Build.VERSION.SDK_INT >= 33)
                             permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)

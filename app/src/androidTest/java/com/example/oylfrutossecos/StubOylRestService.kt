@@ -5,6 +5,8 @@ import okhttp3.RequestBody
 
 /** Endpoints no utilizados fallan: las pruebas no simulan éxito accidental. */
 open class StubOylRestService : OylRestService {
+    override suspend fun pickupPoints(): List<com.example.oylfrutossecos.data.model.PickupPoint> = error("Unused")
+    override suspend fun orderEvents(id: String): List<ApiOrderEvent> = error("Unused")
     override suspend fun health(): ApiHealth = error("Unused")
     override suspend fun products(): List<ApiProduct> = error("Unused")
     override suspend fun createOrder(request: ApiOrderRequest): ApiOrderResponse = error("Unused")

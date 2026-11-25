@@ -46,7 +46,7 @@ class CatalogViewModel(private val repository: ProductRepository) : ViewModel() 
                 val cached = repository.cachedProducts()
                 mutableState.update { it.copy(products = cached, loading = false,
                     error = com.example.oylfrutossecos.data.repository.restError(e) +
-                        " Mostrando la última copia REST guardada; precios y stock pueden haber cambiado.") }
+                    " Mostrando la última información guardada; los precios y las existencias pueden haber cambiado.") }
             }
         }
     }
