@@ -13,7 +13,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest(properties={
     "spring.datasource.url=jdbc:h2:mem:oyl_outbox_test;DB_CLOSE_DELAY=-1",
-    "OYL_ADMIN_KEY=clave-para-pruebas-admin"
+    "OYL_ADMIN_KEY=clave-para-pruebas-admin",
+    "OYL_SERVICE_TOKEN=",
+    "oyl.pickup.url=http://127.0.0.1:1"
 })
 @AutoConfigureMockMvc
 class OutboxIntegrationTest {
