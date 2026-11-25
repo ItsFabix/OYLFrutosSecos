@@ -94,10 +94,9 @@ tasks.register<org.gradle.testing.jacoco.tasks.JacocoReport>("jacocoDebugLogicRe
     executionData.setFrom(fileTree(layout.buildDirectory.dir("jacoco")) {
         include("testDebugUnitTest.exec")
     })
-    val logicalPackages = listOf("**/domain/**", "**/data/repository/**", "**/ui/viewmodel/**")
     classDirectories.setFrom(files(
         fileTree(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
-            include(logicalPackages)
+            include("**/domain/**", "**/data/repository/**", "**/ui/viewmodel/**")
         },
         fileTree(layout.buildDirectory.dir("intermediates/javac/debug/compileDebugJavaWithJavac/classes")) {
             include(logicalPackages)
