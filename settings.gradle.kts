@@ -18,7 +18,8 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-
 rootProject.name = "OYL Frutos Secos"
 include(":app")
 include(":server")
+include(":pickup-service")
+include(":notification-service")

@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS pickup_points (
+    id VARCHAR(40) PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    reference VARCHAR(250) NOT NULL,
+    schedule VARCHAR(160) NOT NULL,
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL
+);
