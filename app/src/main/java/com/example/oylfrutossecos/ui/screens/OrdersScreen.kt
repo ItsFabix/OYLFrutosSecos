@@ -102,7 +102,7 @@ fun OrdersScreen(state: OrderUiState, admin: Boolean, onBack: () -> Unit,
 @Composable
 private fun RemoteOrderEvents(orderId: String, status: OrderStatus) {
     var error by remember(orderId, status) { mutableStateOf(false) }
-    val events by produceState<List<ApiOrderEvent>?>(initialValue = null, orderId, status) {
+    val events by produceState<List<ApiOrderEvent>?>(initialValue = null, key1 = orderId, key2 = status) {
         value = try {
             OylRestClient.service.orderEvents(orderId)
         } catch (cancelled: CancellationException) {
